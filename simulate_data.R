@@ -6,6 +6,10 @@ simulate_time_to <- function(n = 1000, censoring_time = 100) {
   mean_time_02 <- 6 # Death from state 0
   mean_time_12 <- 1
   
+  a01 <- 1/mean_time_01
+  a02 <- 1/mean_time_02
+  a12 <- 1/mean_time_12
+  
   # latent event times
   T01 <- rexp(n, 1/mean_time_01)
   T02 <- rexp(n, 1/mean_time_02)
@@ -25,7 +29,7 @@ simulate_time_to <- function(n = 1000, censoring_time = 100) {
   time_to_illness = ifelse(path == "01" | path == "012", T01, NA)
   time_to_death = ifelse(path == "012", T01+T12, T02)
   time_to_death[time_to_death > censoring_time] = NA
-  time_to_censor = ifelse(path == "00", censoring_time, NA) 
+  time_to_censor = ifelse(path == "00" | path == "01", censoring_time, NA) 
 
   data.table(
     time_to_illness = time_to_illness,
@@ -65,7 +69,8 @@ add_interval_censoring_to_illness <- function(dt, obs_interval = 1, obs_time_sd 
   obs_schedule <- pmax(obs_schedule + obs_noise, 0)
   
   V_0 <- obs_schedule[, 1] <- rep(0, n)
-  idx_healthy <- ifelse(!(path == "00" | path == "02"), rowSums(obs_schedule < time_to_illness), n_obs)
+  
+  idx_healthy <- ifelse(!(path == "00" | path == "02"), rowSums(obs_schedule < time_to_illness), rowSums(obs_schedule < max_follow_up))
   
   V_healthy <- obs_schedule[cbind((1:n), idx_healthy)]
   
@@ -73,27 +78,23 @@ add_interval_censoring_to_illness <- function(dt, obs_interval = 1, obs_time_sd 
                   obs_schedule[cbind(1:n, pmin(idx_healthy + 1, n_obs))],
                   NA)
   
-  # idx_death <- ifelse(!(path == "00" | path == "01"),
-  #                     rowSums(obs_schedule < time_to_death),
-  #                     NA)
-  # 
-#  last_before_death <- obs_schedule[cbind(1:n, pmin(idx_death, n_obs))]
+  V_m <- pmax(V_ill, V_healthy, na.rm = T)
   
   T_obs <- pmin(time_to_censor, time_to_death, na.rm = T)
   
   # Subject is healthy at Vm and still alive at T (no information about illness at T )
-  status <- ifelse(path == "00", 1, NA)
+  status <- ifelse((path == "00" | path == "01") & V_m == V_healthy, 1, NA)
+  
   # Subject is healthy at Vm and die at T (we do not know if subject is ill or healthy at the time of subjects death)
-  status <- ifelse(path == "02" | (V_healthy <= T_obs & T_obs <= V_ill), 2, status)
+  status <- ifelse((path == "02" | path == "012") & V_m == V_healthy, 2, status)
+  
   # Subject is healthy at Vk, (k < m), ill at Vk+1, and still alive at T
-  status <- ifelse(path == "01" !is.na(V_ill) & (V_ill <= T_obs & time_to_death != T_obs), 3, status) 
+  status <- ifelse(path == "01" & V_healthy < V_m , 3, status)
+  
   # Subject is healthy at Vk, (k < m), ill at Vk+1, and dies at T :
-  status <- ifelse(!is.na(V_ill) & (V_ill < T_obs & T_obs == time_to_death), 4, status)
+  status <- ifelse(path == "012" & V_healthy < V_m, 4, status)
   
-  V_healthy[status == 1] = T_obs[status == 1]
-  V_ill[status == 1] = NA  
-  
-  V_ill[status == 2] = NA  
+  T_obs[status == 1] = V_healthy[status == 1]
   
   list(
     obs = data.table(
@@ -105,7 +106,7 @@ add_interval_censoring_to_illness <- function(dt, obs_interval = 1, obs_time_sd 
       ),
     true = data.table(
       obs_schedule = obs_schedule, 
-      time_to_last_obs = time_to_censor,
+      time_to_censor = time_to_censor,
       time_to_illness = time_to_illness,
       time_to_death = time_to_death, 
       status = status
@@ -116,11 +117,11 @@ add_interval_censoring_to_illness <- function(dt, obs_interval = 1, obs_time_sd 
 
 simulate_data <- function(n = 1000, censoring_time = 1) {
   res <- simulate_time_to(n, censoring_time)
-  print(res)
+  # print(res)
   add_interval_censoring_to_illness(res)
 }
 
 
-
-my_data <- simulate_data(100)
-my_data$obs
+# 
+# my_data <- simulate_data(1000, censoring_time = 3)
+# my_data$obs$status %>% as.factor() %>% summary()
