@@ -1,11 +1,93 @@
 library(splines2)
 
-
-
-
+case_1_likelihood <- function(V_0, V_healthy, T_obs, a01, a02, a12, A01, A02, A12) {
+  if (all(V_healthy == T_obs)) {
+    exp(-A01(V_healthy) - A02(V_healthy)) / exp(-A01(V_0) - A02(V_0))
+  } else {
+    p1 <- 1 / exp(-A01(V_0) - A02(V_0))
+    p2 <- exp(-A01(T_obs) - A02(T_obs))
+    
+    factored_out <- exp(-A12(T_obs))
+#    grid <- sort(unique(c(V_0, V_healthy, T_obs)))
+    grid <- seq(min(V_healthy), max(T_obs), length.out = 250)
+      
+      
+    integrand <- exp(-A01(grid) - A02(grid)) * a01(grid) * exp(A12(grid))
+    
+    dx <- diff(grid)
+    mid <- (integrand[-1] + integrand[-length(grid)]) / 2
+    integral_at_grid <- c(0, cumsum(dx * mid))
+    
+    integral_fun <- splinefun(grid, integral_at_grid, method = "natural")
+    
+    p3 <- factored_out * (integral_fun(T_obs) - integral_fun(V_healthy))
+    
+    p1 * (p2 + p3)
+  }
+}
+case_2_likelihood <- function(V_0, V_healthy, T_obs, a01, a02, a12, A01, A02, A12) {
+  p1 <- 1 / exp(-A01(V_0) - A02(V_0))
+  p2 <- exp(-A01(T_obs) - A02(T_obs)) * a02(T_obs)
+  
+  factored_out <- exp(-A12(T_obs)) * a12(T_obs)
+  #grid <- sort(unique(c(V_0, V_healthy, T_obs)))
+  grid <- seq(min(V_healthy), max(T_obs), length.out = 250)
+  integrand <- exp(-A01(grid) - A02(grid)) * a01(grid) * exp(A12(grid))
+  
+  dx <- diff(grid)
+  mid <- (integrand[-1] + integrand[-length(grid)]) / 2
+  integral_at_grid <- c(0, cumsum(dx * mid))
+  
+  integral_fun <- splinefun(grid, integral_at_grid, method = "natural")
+  
+  p3 <- factored_out * (integral_fun(T_obs) - integral_fun(V_healthy))
+  
+  p1 * (p2 + p3)
+}
+case_3_likelihood <- function(V_0, V_healthy, V_ill, T_obs, a01, a02, a12, A01, A02, A12) {
+  p1 <- 1 / exp(-A01(V_0) - A02(V_0))
+  
+  factored_out <- exp(-A12(T_obs))
+  #grid <- sort(unique(c(V_0, V_healthy, V_ill, T_obs)))
+  grid <- seq(min(V_healthy), max(V_ill), length.out = 250)
+  integrand <- exp(-A01(grid) - A02(grid)) * a01(grid) * exp(A12(grid))
+  
+  dx <- diff(grid)
+  mid <- (integrand[-1] + integrand[-length(grid)]) / 2
+  integral_at_grid <- c(0, cumsum(dx * mid))
+  
+  integral_fun <- splinefun(grid, integral_at_grid, method = "natural")
+  
+  
+  
+  p2 <- factored_out * (integral_fun(V_ill) - integral_fun(V_healthy))
+  
+  p1 * p2
+}
+case_4_likelihood <- function(V_0, V_healthy, V_ill, T_obs, a01, a02, a12, A01, A02, A12) {
+  p1 <- 1 / exp(-A01(V_0) - A02(V_0))
+  
+  ####
+  
+  factored_out <- exp(-A12(T_obs)) * a12(T_obs)
+  grid <- seq(min(V_healthy), max(V_ill), length.out = 250)
+  integrand <- exp(-A01(grid) - A02(grid)) * a01(grid) * exp(A12(grid))
+  
+  dx <- diff(grid)
+  mid <- (integrand[-1] + integrand[-length(grid)]) / 2
+  integral_at_grid <- c(0, cumsum(dx * mid))
+  
+  integral_fun <- splinefun(grid, integral_at_grid, method = "natural")
+  
+  
+  
+  p2 <- factored_out * (integral_fun(V_ill) - integral_fun(V_healthy))
+  
+  p1 * p2
+}
 
 spline_hazard <- function(x, theta, knots, degree = 3, cumulative = F) {
-  if (length(theta) != degree + length(knots) -2 + 1) stop("theta wrong length")
+ if (length(theta) != degree + length(knots) -2) stop("theta wrong length")
 
   n_knots <- length(knots)
   
@@ -13,23 +95,22 @@ spline_hazard <- function(x, theta, knots, degree = 3, cumulative = F) {
   
   if (cumulative) {
     I <- iSpline(x,
-                 degree = degree, 
-                 intercept = T,
+                 degree = degree,
                  knots = knots[-c(1,n_knots)],
                  Boundary.knots = knots[c(1,n_knots)],
+                 intercept = F,
                  warn.outside = F)
     return(as.vector(I %*% theta))
   } else {
     M <- mSpline(x,
-                 degree = degree, 
-                 intercept = T,
+                 degree = degree,
                  knots = knots[-c(1,n_knots)],
                  Boundary.knots = knots[c(1,n_knots)],
+                 intercept = F,
                  warn.outside = F)
     return(as.vector(M %*% theta))
   }
 }
-
 
 # V_healthy = V_k or V_m
 # V_ill = V_k+1
@@ -64,93 +145,33 @@ full_log_likehood <- function(V_0,
   A01 <- a01_funs$cumhaz
   A02 <- a02_funs$cumhaz
   A12 <- a12_funs$cumhaz
-
-  case_1_likelihood <- function(V_0, V_healthy, T_obs) {
-    if (!all(V_healthy == T_obs)) stop("for case 1 V_healthy = T_obs!!! or change function")
-    exp(-A01(V_healthy) - A02(V_healthy)) / exp(-A01(V_0) - A02(V_0))
-  }
-
-  case_2_likelihood <- function(V_0, V_healthy, T_obs) {
-    p1 <- 1 / exp(-A01(V_0) - A02(V_0))
-    p2 <- exp(-A01(T_obs) - A02(T_obs)) * a02(T_obs)
-
-    factored_out <- exp(-A12(T_obs)) * a12(T_obs)
-    grid <- sort(unique(c(V_0, V_healthy, T_obs)))
-    integrand <- exp(-A01(grid) - A02(grid)) * a01(grid) * exp(-(A12(grid)))
-
-    dx <- diff(grid)
-    mid <- (integrand[-1] + integrand[-length(grid)]) / 2
-    integral_at_grid <- c(0, cumsum(dx * mid))
-
-    integral_fun <- splinefun(grid, integral_at_grid, method = "natural")
-
-
-
-    p3 <- factored_out * (integral_fun(T_obs) - integral_fun(V_healthy))
-
-    p1 * (p2 + p3)
-  }
-  case_3_likelihood <- function(V_0, V_healthy, V_ill, T_obs) {
-    p1 <- 1 / exp(-A01(V_0) - A02(V_0))
-
-    ####
-
-    factored_out <- exp(-A12(T_obs))
-    grid <- sort(unique(c(V_0, V_healthy, V_ill, T_obs)))
-    integrand <- exp(-A01(grid) - A02(grid)) * a01(grid) * exp(-(A12(grid)))
-
-    dx <- diff(grid)
-    mid <- (integrand[-1] + integrand[-length(grid)]) / 2
-    integral_at_grid <- c(0, cumsum(dx * mid))
-
-    integral_fun <- splinefun(grid, integral_at_grid, method = "natural")
-
-
-
-    p2 <- factored_out * (integral_fun(V_ill) - integral_fun(V_healthy))
-
-    p1 * p2
-  }
-  case_4_likelihood <- function(V_0, V_healthy, V_ill, T_obs) {
-    p1 <- 1 / exp(-A01(V_0) - A02(V_0))
-
-    ####
-
-    factored_out <- exp(-A12(T_obs)) * a12(T_obs)
-    grid <- sort(unique(c(V_0, V_ill, V_healthy, T_obs)))
-    integrand <- exp(-A01(grid) - A02(grid)) * a01(grid) * exp(-(A12(grid)))
-
-    dx <- diff(grid)
-    mid <- (integrand[-1] + integrand[-length(grid)]) / 2
-    integral_at_grid <- c(0, cumsum(dx * mid))
-
-    integral_fun <- splinefun(grid, integral_at_grid, method = "natural")
-
-
-
-    p2 <- factored_out * (integral_fun(V_ill) - integral_fun(V_healthy))
-
-    p1 * p2
-  }
-
+  
   loglik <- 0
   if (any(status == 1)) loglik <- loglik + sum(log(case_1_likelihood(V_0[status == 1],
                                                                      V_healthy[status == 1],
-                                                                     T_obs[status == 1])))
+                                                                     T_obs[status == 1],
+                                                                     a01, a02, a12, 
+                                                                     A01, A02, A12)))
   
   if (any(status == 2)) loglik <- loglik + sum(log(case_2_likelihood(V_0[status == 2],
                                                                      V_healthy[status == 2],
-                                                                     T_obs[status == 2])))
+                                                                     T_obs[status == 2],
+                                                                     a01, a02, a12, 
+                                                                     A01, A02, A12)))
   
   if (any(status == 3)) loglik <- loglik + sum(log(case_3_likelihood(V_0[status == 3],
                                                                      V_healthy[status == 3],
                                                                      V_ill[status == 3],
-                                                                     T_obs[status == 3])))
+                                                                     T_obs[status == 3],
+                                                                     a01, a02, a12, 
+                                                                     A01, A02, A12)))
   
   if (any(status == 4)) loglik <- loglik + sum(log(case_4_likelihood(V_0[status == 4],
                                                                      V_healthy[status == 4],
                                                                      V_ill[status == 4],
-                                                                     T_obs[status == 4])))
+                                                                     T_obs[status == 4],
+                                                                     a01, a02, a12, 
+                                                                     A01, A02, A12)))
 
   return(list(loglik = loglik,
               knots = knots, 

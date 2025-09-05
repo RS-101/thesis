@@ -3,39 +3,47 @@ library(data.table)
 simulate_time_to <- function(n = 1000, censoring_time = 100) {
   # parameters
   mean_time_01 <- 3 # Ill from state 0
-  mean_time_02 <- 6 # Death from state 0
-  mean_time_12 <- 1
+  mean_time_02 <- 10 # Death from state 0
+  mean_time_12 <- 5
   
-  a01 <- 1/mean_time_01
-  a02 <- 1/mean_time_02
-  a12 <- 1/mean_time_12
+  a01 <- function(x) 1/mean_time_01
+  a02 <- function(x) 1/mean_time_02
+  a12 <- function(x) 1/mean_time_12
   
   # latent event times
   T01 <- rexp(n, 1/mean_time_01)
   T02 <- rexp(n, 1/mean_time_02)
   T12 <- rexp(n, 1/mean_time_12)
   
-
+  path <- rep(NA_character_, n)
   
-  path <- ifelse(T01 > T02 & T02 < censoring_time,
-                 "02",
-                 ifelse(T01 > T02 & T02 >= censoring_time,
-                        "00",
-                         ifelse((T01 + T12) < censoring_time,
-                                "012",
-                                "01")))
-
+  path[pmin(T01, T02) >= censoring_time] <- "00"
+  
+  # die before illness
+  path[T02 < T01 & T02 < censoring_time] <- "02"
+  
+  # ill before censoring; then either die before censoring or be censored in 1
+  ill <- (T01 <= T02) & (T01 < censoring_time)
+  path[ill & (T01 + T12 < censoring_time)]  <- "012"
+  path[ill & (T01 + T12 >= censoring_time)] <- "01"
 
   time_to_illness = ifelse(path == "01" | path == "012", T01, NA)
   time_to_death = ifelse(path == "012", T01+T12, T02)
   time_to_death[time_to_death > censoring_time] = NA
   time_to_censor = ifelse(path == "00" | path == "01", censoring_time, NA) 
 
-  data.table(
-    time_to_illness = time_to_illness,
-    time_to_death = time_to_death,
-    time_to_censor = time_to_censor,
-    path
+  list(
+    data = data.table(
+      time_to_illness = time_to_illness,
+      time_to_death = time_to_death,
+      time_to_censor = time_to_censor,
+      path
+    ), 
+    hazards = list(
+      "a01" = a01,
+      "a02" = a02,
+      "a12" = a12
+    )
   )
 }
 
@@ -102,14 +110,14 @@ add_interval_censoring_to_illness <- function(dt, obs_interval = 1, obs_time_sd 
       V_healthy = V_healthy, 
       V_ill = V_ill,
       T_obs = T_obs, 
-      status = status
+      status = factor(status)
       ),
     true = data.table(
       obs_schedule = obs_schedule, 
       time_to_censor = time_to_censor,
       time_to_illness = time_to_illness,
       time_to_death = time_to_death, 
-      status = status
+      status = factor(status)
       )
     )
 }
@@ -118,7 +126,8 @@ add_interval_censoring_to_illness <- function(dt, obs_interval = 1, obs_time_sd 
 simulate_data <- function(n = 1000, censoring_time = 1) {
   res <- simulate_time_to(n, censoring_time)
   # print(res)
-  add_interval_censoring_to_illness(res)
+  list(data = add_interval_censoring_to_illness(res$data), 
+       hazards = res$hazards)
 }
 
 
