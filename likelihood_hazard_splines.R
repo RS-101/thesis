@@ -86,19 +86,17 @@ case_4_likelihood <- function(V_0, V_healthy, V_ill, T_obs, a01, a02, a12, A01, 
   p1 * p2
 }
 
+# needs testing
 spline_hazard <- function(x, theta, knots, degree = 3, cumulative = F) {
- if (length(theta) != degree + length(knots) -2) stop("theta wrong length")
-
-  n_knots <- length(knots)
-  
-  
-  
+ n_knots <- length(knots)
+ if (length(theta) != degree + n_knots - 1) stop("theta wrong length")
+ 
   if (cumulative) {
     I <- iSpline(x,
                  degree = degree,
                  knots = knots[-c(1,n_knots)],
                  Boundary.knots = knots[c(1,n_knots)],
-                 intercept = F,
+                 intercept = T,
                  warn.outside = F)
     return(as.vector(I %*% theta))
   } else {
@@ -106,12 +104,41 @@ spline_hazard <- function(x, theta, knots, degree = 3, cumulative = F) {
                  degree = degree,
                  knots = knots[-c(1,n_knots)],
                  Boundary.knots = knots[c(1,n_knots)],
-                 intercept = F,
+                 intercept = T,
                  warn.outside = F)
     return(as.vector(M %*% theta))
   }
 }
 
+# needs testing
+pen_mat_m_splines <- function(input_knots, degree = 3) {
+  n_knots <- length(input_knots)
+  d <- diff(input_knots)
+  g_ab <- mSpline(x = input_knots,
+                  knots = input_knots[-c(1,n_knots)],
+                  Boundary.knots = range(input_knots),
+                  degree = degree,
+                  derivs = 2,
+                  intercept = TRUE
+  )
+  knots_mid <- input_knots[-length(input_knots)] + d / 2
+  g_ab_mid <- mSpline(x = knots_mid,
+                      knots = input_knots[-c(1,n_knots)],
+                      Boundary.knots = range(input_knots),
+                      degree = degree,
+                      derivs = 2,
+                      intercept = TRUE
+  )
+  g_a <- g_ab[-nrow(g_ab), ]
+  g_b <- g_ab[-1, ]
+  (crossprod(d * g_a,  g_a) + 
+      4 * crossprod(d * g_ab_mid, g_ab_mid) + 
+      crossprod(d * g_b, g_b)) / 6 
+}
+
+
+
+# needs testing
 # V_healthy = V_k or V_m
 # V_ill = V_k+1
 full_log_likehood <- function(V_0,
