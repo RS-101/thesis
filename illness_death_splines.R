@@ -6,7 +6,7 @@ library(tidyverse)
 debugSource("likelihood_hazard_splines.R")
 source("simulate_data.R")
 
-sim_dat_all <- simulate_data(1000, censoring_time = 10)
+sim_dat_all <- simulate_data(5000, censoring_time = 15)
 sim_dat <- sim_dat_all$data$obs
 
 sim_dat %>% summary()
@@ -23,10 +23,10 @@ sim_dat %>% summary()
 # 
 
 
-do_likelihood_optim <- function(sim_dat, n_par, degree) {
+do_likelihood_optim <- function(sim_dat, n_knots, degree) {
   
-  n_knots = n_par - degree  + 1
-  
+  n_par = n_knots + degree - 1
+    
   knots_a01 <- seq(min(sim_dat$V_0), max(sim_dat$T_obs), length.out = n_knots)
   knots_a02 <- knots_a01
   knots_a12 <- knots_a01
@@ -67,7 +67,7 @@ do_likelihood_optim <- function(sim_dat, n_par, degree) {
     fn = obj_fun,
     method = "L-BFGS-B",
     lower = rep(0.0001, 3*n_par),
-    upper = rep(10, 3*n_par)
+    upper = rep(13, 3*n_par)
   )
   
   res$par
@@ -86,7 +86,7 @@ do_likelihood_optim <- function(sim_dat, n_par, degree) {
   res_full
 }
 
-res_full <- do_likelihood_optim(sim_dat, n_par = 12, degree = 3)
+res_full <- do_likelihood_optim(sim_dat, n_knots = 12, degree = 3)
 
 
 
@@ -101,7 +101,7 @@ funs <- list(
 )
 
 # Grid of x values
-xvals <- seq(0, 6, length.out = 200)
+xvals <- seq(0, 10, length.out = 200)
 
 
 
@@ -123,5 +123,5 @@ ggplot(df, aes(x = x, y = y, colour = fun)) +
   labs(title = "Spline hazard",
        x = "x", y = "value") +
   theme_minimal() + 
-  ylim(0,1)
+  ylim(0,10)
 

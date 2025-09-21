@@ -54,16 +54,56 @@ simulate_constant_hazard <- function(
 }
 
 
-simulate_hazard_function <- function(
+simulate_hazard_weibull <- function(
     n = 1000,
     censoring_time = 100,
-    a01 = function(x) x^2,
-    a02 = function(x) log(x),
-    a12 = function(x) x) {
+    par = list(lambda01 = 1, # scale
+               gamma01 = 1.1, # shape
+               lambda02 = 1, 
+               gamma02 = 1.5,
+               lambda12 = 1, 
+               gamma12 = 0.8)
+    ){
+  # latent event times
+  T01 <- rweibull(n, shape = par$gamma01, scale = par$lambda01)
+  T02 <- rweibull(n, shape = par$gamma02, scale = par$lambda02)
+  T12 <- rweibull(n, shape = par$gamma12, scale = par$lambda12)
   
+  path <- rep(NA_character_, n)
   
+  path[pmin(T01, T02) >= censoring_time] <- "00"
   
+  # die before illness
+  path[T02 < T01 & T02 < censoring_time] <- "02"
   
+  # ill before censoring; then either die before censoring or be censored in 1
+  ill <- (T01 <= T02) & (T01 < censoring_time)
+  path[ill & (T01 + T12 < censoring_time)] <- "012"
+  path[ill & (T01 + T12 >= censoring_time)] <- "01"
+  
+  time_to_illness <- ifelse(path == "01" | path == "012", T01, NA)
+  time_to_death <- ifelse(path == "012", T01 + T12, T02)
+  time_to_death[time_to_death > censoring_time] <- NA
+  time_to_censor <- ifelse(path == "00" | path == "01", censoring_time, NA)
+  
+  list(
+    data = data.table(
+      time_to_illness = time_to_illness,
+      time_to_death = time_to_death,
+      time_to_censor = time_to_censor,
+      path
+    ),
+    hazards = list(
+      "a01" = function(x) par$gamma01/(par$lambda01)^par$gamma01*x^(par$gamma01 - 1),
+      "a02" = function(x) par$gamma02/(par$lambda02)^par$gamma02*x^(par$gamma02 - 1),
+      "a12" = function(x) par$gamma12/(par$lambda12)^par$gamma12*x^(par$gamma12 - 1)
+    ),
+    density = list(
+      "a01" = function(x) dweibull(x, shape = par$gamma01, scale = par$lambda01),
+      "a02" = function(x) dweibull(x, shape = par$gamma02, scale = par$lambda02),
+      "a12" = function(x) dweibull(x, shape = par$gamma12, scale = par$lambda12)
+    )
+  )
 }
 
 add_interval_censoring_to_illness <- function(dt, obs_interval = 1, obs_time_sd = 0.1) {
@@ -138,11 +178,12 @@ add_interval_censoring_to_illness <- function(dt, obs_interval = 1, obs_time_sd 
 
 
 simulate_data <- function(n = 1000, censoring_time = 1) {
-  res <- simulate_constant_hazard(n, censoring_time)
+  res <- simulate_hazard_weibull(n, censoring_time)
   # print(res)
   list(
     data = add_interval_censoring_to_illness(res$data),
-    hazards = res$hazards
+    hazards = res$hazards, 
+    density = res$density
   )
 }
 
