@@ -140,32 +140,16 @@ is_subset.interval <- function(A, B, strict_subset = F) {
 #### From paper specific ####
 
 make_Q <- function(L_bar, R_bar) {
-  # ensure sorted & unique
-  L_bar <- sort(unique(L_bar))
-  R_bar <- sort(unique(R_bar))
-  all_points <- sort(unique(c(L_bar, R_bar)))
-  
-  Q <- list()
-  
-  for (l in L_bar) {
-    # Case 1: point interval when l is also a right endpoint
-    if (l %in% R_bar) {
-      Q[[length(Q) + 1]] <- c(l, l)
-      next
-    }
-    # Case 2: pair l with the immediately next point if it's in R_bar
-    pos <- which(all_points == l)
-    if (length(pos) && pos < length(all_points)) {
-      next_point <- all_points[pos + 1]
-      if (next_point %in% R_bar) {
-        Q[[length(Q) + 1]] <- c(l, next_point)
-      }
-    }
-  }
-  
-  if (!length(Q)) return(data.frame(left = numeric(0), right = numeric(0)))
-  Q_df <- as.interval(as.matrix(do.call(rbind, Q)), L_open = F, R_open = F)
-  Q_df
+  L_bar <- sort(L_bar[!is.na(L_bar)])
+  R_bar <- sort(R_bar[!is.na(R_bar)])
+  Q <- matrix(c(rep(0L, length(L_bar)), rep(1L, length(R_bar)), 
+                    L_bar, R_bar), ncol = 2)
+  Q <- Q[order(Q[,2]), ]
+  tag <- which(diff(Q[, 1], 1) == 1)
+  Q <- matrix(c(Q[tag, 2], Q[tag + 1, 2]), ncol = 2)
+
+  Q <- as.interval(Q, L_open = F, R_open = F)
+  Q
 }
 
 # Comment: the intervals input determines if the interval is open or closed

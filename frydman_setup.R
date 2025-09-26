@@ -37,10 +37,13 @@ t_c <- L_c + floor(runif(C, min = 2, max = 10)) # censored
 
 ##### K: E* - Obs and potential 1 -> 3 ####
 E_star <- unique(c(e_k, t_u))
-c_k <- as.numeric(table(factor(c(e_k, t_u), levels = E_star)))
+#c_k <- as.numeric(table(factor(c(e_k, t_u), levels = E_star)))
+# DANGER CHAT SAYS THAT THIS IS CORRECT
+# as sum(c_k) then is equal to K_tilde, otherwise K < sum(c_k) <= K + U, with = when e_k ∩ t_u = ∅
+c_k <- as.numeric(table(factor(e_k, levels = E_star)))
 K <- length(E_star)
 
-##### N: T* - Obs and potential 1 -> 2 -> 3 ####
+##### N: T* - Obs and potential entry to state 3 from state 2: 1 -> 2 -> 3 ####
 T_star <- unique(c(t_m[in_N_tilde], t_u))
 d_n <- as.numeric(table(factor(c(t_m[in_N_tilde], t_u), levels = T_star)))
 
@@ -72,7 +75,6 @@ full_A_m <- as.interval(rbind(A_m, A_u, A_c))
 
 ##### A := ⋃_{m=1}^{M'} A_m ####
 A_union <- get_interval(full_A_m)
-A_union <- get_interval(as.interval(matrix(c(1, 4), nrow = 1, byrow = T)))
 
 #### Data manipulation ####
 ##### I: Q_i = [l_i,r_i] ####
@@ -90,18 +92,15 @@ e_star_max <- max(E_star)
 L_bar <- c(
   full_A_m[, 1],
   intersect(A_union, T_star),
-  intersect(s_j, A_union),
+  intersect(A_union, s_j),
   na.omit(ifelse(s_max > max(R_max, e_star_max), s_max, NA))
 )
 
 # R_bar = {R_m, 1 <= m <= W} ∪ {∞}
 R_bar <- c(full_A_m[1:(M + U), 2], Inf)
 
-L_bar_sort_distinct <- sort(unique(L_bar))
-R_bar_sort_distinct <- sort(unique(R_bar))
-
 # !!!DANGER I AM UNSURE ABOUT THE CREATION OF Q!!!
-Q_i <- make_Q(L_bar_sort_distinct, R_bar_sort_distinct)
+Q_i <- make_Q(L_bar, L_bar)
 
 Q <- get_interval(Q_i)
 
@@ -192,7 +191,7 @@ cal_mu_MI <- function(z_i, lambda_n, beta_im, Q_i, A_m, T_star) {
 
 ##### μ_bar_mi(z, ɑ) ∈ J x I', ####
 cal_mu_bar_JI_mark <- function(alpha_ij, z_i) {
-  prod <- alpha_ij * z_i
+  prod <- alpha_ij[1:I_mark, 1:J] * z_i
   res <- t(sweep(prod, 2, colSums(prod), "/"))
   res[is.na(res)] <- 0
   res
@@ -221,14 +220,18 @@ cal_eta_UI_mark <- function(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_
         lambda_n = lambda_n
       )
     }))
+    
+    denom <- lambda_M_p_u * sum(prod_res * beta_im[1:I, (M + u)] * z_i[1:I]) +
+      sum((E_star == t_u[u]) * z_i[(I + 1):I_mark])
+    
     for (i in 1:I_mark) {
       if (i <= I) {
         eta_ui[u, i] <- lambda_M_p_u *
           prod_res[i] *
           beta_im[i, (M + u)] *
-          z_i[i] / L_u_U[u]
+          z_i[i] / denom
       } else if (i <= I_mark) {
-        eta_ui[u, i] <- as.numeric(t_u[u] == E_star[i - I]) * z_i[i] / L_u_U[u]
+        eta_ui[u, i] <- as.numeric(t_u[u] == E_star[i - I]) * z_i[i] / denom
       }
     }
   }
@@ -239,10 +242,11 @@ cal_eta_UI_mark <- function(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_
 
 ##### γ_ji() ∈ C x I', ####
 cal_gamma_CI_mark <- function(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im, z_i) {
+  I <- nrow(Q_i)
+  C <- nrow(A_c)
+  I_mark <- length(z_i)
   gamma_ci <- matrix(nrow = C, ncol = I_mark)
-
   r_i <- Q_i[, 2]
-  L_c_C <- A_c[, 1]^C
   
   for (c in 1:C) {
     prod_res <- unlist(lapply(r_i, function(r_i) {
@@ -256,12 +260,14 @@ cal_gamma_CI_mark <- function(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im
         lambda_n = lambda_n
       )
     }))
+    
+    denum <- sum(prod_res * beta_im[1:I, (W + c)] * z_i[1:I]) + sum(alpha_ij[, (J + c)] * z_i)      
     for (i in 1:I_mark) {
       if (i <= I) {
-        gamma_ci[c,i] <- alpha_ij[i,(J+c)]/L_c_C[c]+
-          (prod_res[i]*beta_im[i,(W+c)])/L_c_C[c]
+        gamma_ci[c,i] <- alpha_ij[i,(J+c)]*z_i[i]/denum+
+          (prod_res[i]*beta_im[i,(W+c)]*z_i[i])/denum
       } else if (i <= I_mark) {
-        gamma_ci[c,i] <- alpha_ij[i,(J+c)]*z_i[i]/L_c_C[c]
+        gamma_ci[c,i] <- alpha_ij[i,(J+c)]*z_i[i]/denum
       }
     }
   }
@@ -296,7 +302,6 @@ cal_rho_MN <- function(t_m, T_star, A_m, mu_mi, Q_i) {
 
 ##### π ∈ U x N ####
 
-# NEED FIX
 cal_pi_UN <- function(t_u, T_star, A_u, eta_ui, Q_i) {
   pi_un <- matrix(nrow = U,ncol = N)
   
@@ -373,7 +378,7 @@ e_24 <- function(c_k, mu_bar_ji, eta_ui, gamma_ci, N_star) {
   eta_ui <- eta_ui[,(I+1):I_mark]
   gamma_ci <- gamma_ci[,(I+1):I_mark]
   
-  if (!all(length(c_k) == I_diff, ncol(mu_bar_ji) == I_diff, ncol(eta_ui) == I_diff, ncol(gamma_ci) == I_diff)) {
+  if (!all(sum(c_k) == K_tilde, ncol(mu_bar_ji) == I_diff, ncol(eta_ui) == I_diff, ncol(gamma_ci) == I_diff)) {
     stop("mu_bar_ji, eta_ui, gamma_ci must each have K columns matching length(c_vec).")
   }
   

@@ -26,92 +26,49 @@
 na0 <- function(x) { x[is.na(x)] <- 0; x }
 
 # helper: right-continuous step CDF from (times, masses) at s_eval
-step_cdf <- function(times, masses, s_eval) {
-  oo <- order(times, masses)
-  times  <- times[oo]; masses <- masses[oo]
+step_cdf <- function(grid_points, times, masses, ...) {
+  time_order <- order(times)
+  times <- times[time_order]
+  masses <- masses[time_order]
   cs <- cumsum(masses)
-  # for each s, include all jumps with time ≤ s
-  idx <- findInterval(s_eval, times, left.open = FALSE, rightmost.closed = TRUE)
-  out <- ifelse(idx == 0, 0, cs[idx])
-  pmin(out, 1)  # cap at 1, defensively
-}
-
-# helper: F(s-) at arbitrary t (strictly before t)
-F_minus_at <- function(times_all, masses_all, t) {
-  oo <- order(times_all, masses_all)
-  ta <- times_all[oo]; ma <- masses_all[oo]
-  cma <- cumsum(ma)
-  idx <- findInterval(t, ta, left.open = TRUE, rightmost.closed = TRUE) # strict <
-  ifelse(idx == 0, 0, pmin(cma[idx], 1))
+  idx <- findInterval(grid_points, times, ...)
+  c(0,cs)[idx+1]
 }
 
 # Main calculator
-calc_F_and_hazards <- function(z_head, r, z_tail = numeric(0), Q = numeric(0),
-                               s_eval, lambda = numeric(0), tstar = numeric(0),
-                               l = NULL) {
-  z_head <- as.numeric(z_head); r <- as.numeric(r)
-  z_tail <- as.numeric(z_tail); Q <- as.numeric(Q)
-  s_eval <- as.numeric(s_eval); lambda <- as.numeric(lambda); tstar <- as.numeric(tstar)
-  
-  stopifnot(length(z_head) == length(r))
-  stopifnot(length(z_tail) == length(Q))
+calc_F_and_hazards <- function(grid_points, z_i, lambda, Q_i, T_star, E_star) {
   
   # F12, F13, F on s_eval
-  F12 <- if (length(r)) step_cdf(r, z_head, s_eval) else rep(0, length(s_eval))
-  F13 <- if (length(Q)) step_cdf(Q, z_tail, s_eval) else rep(0, length(s_eval))
-  Ftot <- pmin(F12 + F13, 1)
   
-  # Build full jump lists for computing F(s-)
-  all_times  <- c(r, Q)
-  all_masses <- c(z_head, z_tail)
+  # use intercept for F12 instead of just right or left endpoint
   
+  F12 <- step_cdf(grid_points, times = Q_i[1:I, 2], masses = z_i[1:I])
+  F13 <- step_cdf(grid_points, times = Q_i_mark, masses = z_i[(I+1):I_mark])
+  F_total <- F12 + F13
+  
+  A23 <- step_cdf(grid_points, T_star, masses = lambda_n)
+  
+  
+  F12_at_l_i <- step_cdf(Q_i[,1]-1e-6, times = Q_i[1:I, 2], masses = z_i[1:I])
   # A12(s): denominators need F(l_i-) for each i
-  if (is.null(l)) {
-    # default: take l_i as an instant just before r_i; then F(l_i-) counts all jumps with time < r_i
-    l_use <- r
-  } else {
-    l_use <- as.numeric(l)
-    stopifnot(length(l_use) == length(r))
-  }
+  denom12 <- 1 - F12_at_l_i
+  term12  <- ifelse(denom12 > 0, z_i[1:I] / denom12, 0)
+  A12 <- step_cdf(grid_points, times = Q_i[,2], term12)
   
-  denom12 <- 1 - F_minus_at(all_times, all_masses, l_use)
-  term12  <- ifelse(denom12 > 0, z_head / denom12, 0)
-  
-  # cumulative hazard A12 at s_eval: sum terms with r_i ≤ s
-  A12 <- if (length(r)) {
-    # cumulative sums aligned to ordered r
-    oo <- order(r)
-    r_o <- r[oo]; t_o <- term12[oo]
-    cs  <- cumsum(t_o)
-    idx <- findInterval(s_eval, r_o, left.open = FALSE, rightmost.closed = TRUE)
-    ifelse(idx == 0, 0, cs[idx])
-  } else rep(0, length(s_eval))
-  
-  # Λ13(s): denominators 1 - F(Q_k -)
-  if (length(Q)) {
-    denom13 <- 1 - F_minus_at(all_times, all_masses, Q)
-    term13  <- ifelse(denom13 > 0, z_tail / denom13, 0)
-    ooq <- order(Q)
-    Q_o <- Q[ooq]; t13_o <- term13[ooq]
-    cs13 <- cumsum(t13_o)
-    idxq <- findInterval(s_eval, Q_o, left.open = FALSE, rightmost.closed = TRUE)
-    A13 <- ifelse(idxq == 0, 0, cs13[idxq])
-  } else {
-    A13 <- rep(0, length(s_eval))
-  }
-  
-  # Λ23(t) on t_eval = s_eval if you want; else evaluate at unique sorted union of tstar and s_eval
-  t_eval <- sort(unique(s_eval))
-  A23 <- if (length(tstar)) step_cdf(tstar, lambda, t_eval) else rep(0, length(t_eval))
+  F_total_at_e_k <- step_cdf(E_star-1e-6, times = Q_i[1:I, 2], masses = z_i[1:I]) + 
+    step_cdf(E_star-1e-6, times = Q_i_mark, masses = z_i[(I+1):I_mark])
+  # A12(s): denominators need F(l_i-) for each i
+  denom13 <- 1 - F_total_at_e_k
+  term13  <- ifelse(denom12 > 0, z_i[(I+1):I_mark] / denom13, 0)
+  A13 <- step_cdf(grid_points, times = E_star, term13)
   
   list(
-    s_eval = s_eval,
+    grid_points = grid_points,
     F12 = F12,
     F13 = F13,
-    F = Ftot,
+    F = F_total,
     Lambda12 = A12,
     Lambda13 = A13,
-    t_eval_for_23 = t_eval,
     Lambda23 = A23
   )
 }

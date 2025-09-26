@@ -1,43 +1,55 @@
-plot_estimators <- function(res) {
-  oldpar <- par(no.readonly = TRUE)
-  on.exit(par(oldpar))
-  par(mfrow = c(2, 2))
-  
-  # Sort helper
-  sort_xy <- function(x, y) {
-    o <- order(x)
-    list(x = x[o], y = y[o])
-  }
+# ggplot2 rewrite (uses ggplot2 + patchwork)
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+plot_estimators_gg <- function(res) {
+  # Common theme
+  thm <- theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_line(),
+          plot.title = element_text(face = "bold"))
   
   # F12
-  xy <- sort_xy(res$s_eval, res$F12)
-  plot(xy$x, xy$y, type = "s", col = "blue", lwd = 2,
-       xlab = "s", ylab = expression(hat(F)[12](s)), main = "Estimator F12(s)")
-  grid()
+  df_F12 <- data.frame(s = res$grid_points, y = res$F12) |> arrange(s)
+  p1 <- ggplot(df_F12, aes(x = s, y = y)) +
+    geom_step(linewidth = 1, color = "blue") +
+    labs(x = "s", y = expression(hat(F)[12](s)), title = "Estimator F12(s)") +
+    thm
   
   # F13
-  xy <- sort_xy(res$s_eval, res$F13)
-  plot(xy$x, xy$y, type = "s", col = "red", lwd = 2,
-       xlab = "s", ylab = expression(hat(F)[13](s)), main = "Estimator F13(s)")
-  grid()
+  df_F13 <- data.frame(s = res$grid_points, y = res$F13) |> arrange(s)
+  p2 <- ggplot(df_F13, aes(x = s, y = y)) +
+    geom_step(linewidth = 1, color = "red") +
+    labs(x = "s", y = expression(hat(F)[13](s)), title = "Estimator F13(s)") +
+    thm
   
   # F
-  xy <- sort_xy(res$s_eval, res$F)
-  plot(xy$x, xy$y, type = "s", col = "purple", lwd = 2,
-       xlab = "s", ylab = expression(hat(F)(s)), main = "Estimator F(s)")
-  grid()
+  df_F <- data.frame(s = res$grid_points, y = res$F) |> arrange(s)
+  p3 <- ggplot(df_F, aes(x = s, y = y)) +
+    geom_step(linewidth = 1, color = "purple") +
+    labs(x = "s", y = expression(hat(F)(s)), title = "Estimator F(s)") +
+    thm
   
   # Hazards Λ12, Λ13, Λ23
-  xy12 <- sort_xy(res$s_eval, res$Lambda12)
-  xy13 <- sort_xy(res$s_eval, res$Lambda13)
-  xy23 <- sort_xy(res$t_eval_for_23, res$Lambda23)
+  df_haz <- dplyr::bind_rows(
+    data.frame(s = res$grid_points,         y = res$Lambda12, which = "L12"),
+    data.frame(s = res$grid_points,         y = res$Lambda13, which = "L13"),
+    data.frame(s = res$grid_points,         y = res$Lambda23, which = "L23")
+  ) |> arrange(s)
   
-  plot(xy12$x, xy12$y, type = "s", col = "blue", lwd = 2,
-       xlab = "s", ylab = "Cumulative hazards", main = "Λ estimators")
-  lines(xy13$x, xy13$y, type = "s", col = "red", lwd = 2)
-  lines(xy23$x, xy23$y, type = "s", col = "darkgreen", lwd = 2)
-  legend("topleft",
-         legend = c(expression(hat(Lambda)[12]), expression(hat(Lambda)[13]), expression(hat(Lambda)[23])),
-         col = c("blue", "red", "darkgreen"), lwd = 2, bty = "n")
-  grid()
+  p4 <- ggplot(df_haz, aes(x = s, y = y, color = which)) +
+    geom_step(linewidth = 1, alpha = 0.5) +
+    scale_color_manual(
+      values = c(L12 = "blue", L13 = "red", L23 = "darkgreen"),
+      labels = c(
+        L12 = expression(hat(Lambda)[12]),
+        L13 = expression(hat(Lambda)[13]),
+        L23 = expression(hat(Lambda)[23])
+      )
+    ) +
+    labs(x = "s", y = "Cumulative hazards", color = NULL, title = "Λ estimators") +
+    thm
+  
+  # Arrange 2x2 grid
+  (p1 | p2) / (p3 | p4)
 }
