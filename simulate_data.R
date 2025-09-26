@@ -178,7 +178,7 @@ add_interval_censoring_to_illness <- function(dt, obs_interval = 1, obs_time_sd 
 
 
 simulate_data <- function(n = 1000, censoring_time = 1) {
-  res <- simulate_hazard_weibull(n, censoring_time)
+  res <- simulate_constant_hazard(n, censoring_time)
   # print(res)
   list(
     data = add_interval_censoring_to_illness(res$data),
