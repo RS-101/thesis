@@ -36,8 +36,11 @@ step_cdf <- function(grid_points, times, masses, ...) {
 }
 
 # Main calculator
-calc_F_and_hazards <- function(grid_points, z_i, lambda, Q_i, T_star, E_star) {
+calc_F_and_hazards <- function(grid_points, z_i, lambda_n, Q_i, Q_i_mark, T_star, E_star) {
   
+  
+  I <- nrow(Q_i)
+  I_mark <- I + length(Q_i_mark)
   # F12, F13, F on s_eval
   
   # use intercept for F12 instead of just right or left endpoint

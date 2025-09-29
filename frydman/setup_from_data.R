@@ -1,13 +1,14 @@
-df <- simulate_data(1000,censoring_time = 10)
-
-data <- df$data$obs %>% arrange(status)
-data
+debugSource("frydman/setup_helper_functions.R")
 
 setup_frydman <- function(data) {
   
   data <- as.data.table(data)
-  stopifnot(all(sort(names(data)) == sort(c("V_0", "V_healthy",
+  if(isFALSE("id" %in% names(data))) {data[, id:= .I]}
+  
+  stopifnot(all(sort(names(data)) == sort(c("id", "V_0", "V_healthy",
                                             "V_ill", "T_obs", "status"))))
+  
+  
   
   # case 1
   case_1 <- data[status == 1]
@@ -36,16 +37,16 @@ setup_frydman <- function(data) {
   # case 4
   case_4 <- data[status == 4]
   N_tilde <- case_4[,.N]  
+  t_m_in_N_tilde <- case_4$T_obs
 
   # case 3
+  case_3 <- data[status == 3]
   case_3_4 <- data[status %in% c(3,4)]
   M <- case_3_4[,.N]
   
   L_m <- case_3_4$V_healthy
   R_m <- case_3_4$V_ill
   t_m <- case_3_4$T_obs
-  
-  
   
   ##### K: E* - Obs and potential 1 -> 3 ####
   E_star <- unique(c(e_k, t_u))
@@ -56,11 +57,11 @@ setup_frydman <- function(data) {
   K <- length(E_star)
   
   ##### N: T* - Obs and potential entry to state 3 from state 2: 1 -> 2 -> 3 ####
-  T_star <- unique(c(t_m[in_N_tilde], t_u))
-  d_n <- as.numeric(table(factor(c(t_m[in_N_tilde], t_u), levels = T_star)))
+  T_star <- unique(c(t_m_in_N_tilde, t_u))
+  d_n <- as.numeric(table(factor(c(t_m_in_N_tilde, t_u), levels = T_star)))
   
-  N1_obs_of_T_star <- length(unique(t_m[in_N_tilde]))
-  U_pos_obs_of_T_star <- length(setdiff(unique(t_u), unique(t_m[in_N_tilde])))
+  N1_obs_of_T_star <- length(unique(t_m_in_N_tilde))
+  U_pos_obs_of_T_star <- length(setdiff(unique(t_u), unique(t_m_in_N_tilde)))
   
   N <- length(T_star)
   
@@ -151,22 +152,12 @@ setup_frydman <- function(data) {
     t_c      = t_c,      # event-time indices for M/U/C
     N_star   = N_star,   # denominator constant in (23)/(24)
     d_n      = d_n,      # first-term vector in (25); include zeros if not applicable
-    c_k      = c_k       # constants for i > I in (24); optional
+    c_k      = c_k,       # constants for i > I in (24); optional,
+    I_mark   = I_mark,
+    J        = J, 
+    M        = M,
+    W        = W,
+    K_tilde  = K_tilde,
+    N1_obs_of_T_star = N1_obs_of_T_star
   )
 }
-
-list_1 <- setup_frydman(data)
-
-
-res_em <- do.call(
-  em_estimate,
-  c(
-    list(
-      z_init = z_i,
-      lambda_init = lambda_n,
-      verbose = TRUE,
-      max_iter = 200
-    ),
-    list1
-  )
-)

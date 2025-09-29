@@ -136,8 +136,6 @@ pen_mat_m_splines <- function(input_knots, degree = 3) {
       crossprod(d * g_b, g_b)) / 6 
 }
 
-
-
 # needs testing
 # V_healthy = V_k or V_m
 # V_ill = V_k+1
@@ -174,29 +172,29 @@ full_log_likehood <- function(V_0,
   A12 <- a12_funs$cumhaz
   
   loglik <- 0
-  if (any(status == 1)) loglik <- loglik + sum(log(case_1_likelihood(V_0[status == 1],
-                                                                     V_healthy[status == 1],
-                                                                     T_obs[status == 1],
+  if (any(status == 1)) loglik <- loglik + sum(log(case_1_likelihood(V_0[as.integer(status) == 1],
+                                                                     V_healthy[as.integer(status) == 1],
+                                                                     T_obs[as.integer(status) == 1],
                                                                      a01, a02, a12, 
                                                                      A01, A02, A12)))
   
-  if (any(status == 2)) loglik <- loglik + sum(log(case_2_likelihood(V_0[status == 2],
-                                                                     V_healthy[status == 2],
-                                                                     T_obs[status == 2],
+  if (any(as.integer(status) == 2)) loglik <- loglik + sum(log(case_2_likelihood(V_0[as.integer(status) == 2],
+                                                                     V_healthy[as.integer(status) == 2],
+                                                                     T_obs[as.integer(status) == 2],
                                                                      a01, a02, a12, 
                                                                      A01, A02, A12)))
   
-  if (any(status == 3)) loglik <- loglik + sum(log(case_3_likelihood(V_0[status == 3],
-                                                                     V_healthy[status == 3],
-                                                                     V_ill[status == 3],
-                                                                     T_obs[status == 3],
+  if (any(as.integer(status) == 3)) loglik <- loglik + sum(log(case_3_likelihood(V_0[as.integer(status) == 3],
+                                                                     V_healthy[as.integer(status) == 3],
+                                                                     V_ill[as.integer(status) == 3],
+                                                                     T_obs[as.integer(status) == 3],
                                                                      a01, a02, a12, 
                                                                      A01, A02, A12)))
   
-  if (any(status == 4)) loglik <- loglik + sum(log(case_4_likelihood(V_0[status == 4],
-                                                                     V_healthy[status == 4],
-                                                                     V_ill[status == 4],
-                                                                     T_obs[status == 4],
+  if (any(as.integer(status) == 4)) loglik <- loglik + sum(log(case_4_likelihood(V_0[as.integer(status) == 4],
+                                                                     V_healthy[as.integer(status) == 4],
+                                                                     V_ill[as.integer(status) == 4],
+                                                                     T_obs[as.integer(status) == 4],
                                                                      a01, a02, a12, 
                                                                      A01, A02, A12)))
 
@@ -210,4 +208,70 @@ full_log_likehood <- function(V_0,
                              A02 = A02,
                              A12 = A12)
               ))
+}
+
+
+
+
+do_likelihood_optim <- function(sim_dat, n_knots, degree, penalizer) {
+  
+  n_par = n_knots + degree - 1
+  
+  knots_a01 <- seq(min(sim_dat$V_0), max(sim_dat$T_obs), length.out = n_knots)
+  knots_a02 <- knots_a01
+  knots_a12 <- knots_a01
+  
+  knots = list(a01 = knots_a01,
+               a02 = knots_a02,
+               a12 = knots_a12)
+  
+  obj_fun <- function(x) {
+    
+    val <- -full_log_likehood(V_0 = sim_dat$V_0,
+                              V_healthy = sim_dat$V_healthy,
+                              V_ill = sim_dat$V_ill,
+                              T_obs = sim_dat$T_obs,
+                              status = sim_dat$status,
+                              theta = list(a01 = x[1:n_par], 
+                                           a02 = x[(n_par+1):(2*n_par)], 
+                                           a12 = x[(2*n_par+1):(3*n_par)]),
+                              degree, 
+                              knots
+    )$loglik - penalizer*(
+      drop(t(x[1:n_par]) %*% pen_mat_m_splines(knots_a01) %*% x[1:n_par]) + 
+        drop(t(x[(n_par+1):(2*n_par)]) %*% pen_mat_m_splines(knots_a02) %*% x[(n_par+1):(2*n_par)]) + 
+        drop(t(x[(2*n_par+1):(3*n_par)]) %*% pen_mat_m_splines(knots_a12) %*% x[(2*n_par+1):(3*n_par)]))   
+    
+    if (!is.finite(val)) return(1e10)
+    return(val)
+  }
+  
+  x0 <- rep(1, 3*n_par)
+  
+  
+  obj_fun(x0)
+  
+  
+  res <- optim(
+    par = x0,
+    fn = obj_fun,
+    method = "L-BFGS-B",
+    lower = rep(0.0001, 3*n_par),
+    upper = rep(13, 3*n_par)
+  )
+  
+  res$par
+  
+  res_full <- full_log_likehood(V_0 = sim_dat$V_0,
+                                V_healthy = sim_dat$V_healthy,
+                                V_ill = sim_dat$V_ill,
+                                T_obs = sim_dat$T_obs,
+                                status = sim_dat$status,
+                                theta = list(a01 = res$par[1:n_par], 
+                                             a02 = res$par[(n_par+1):(2*n_par)], 
+                                             a12 = res$par[(2*n_par+1):(3*n_par)]),
+                                degree, 
+                                knots)
+  
+  res_full
 }

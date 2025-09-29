@@ -1,5 +1,11 @@
 
+
 rm(list = ls())
+source("aux_frydman.R")
+source("frydman_cal_est.R")
+source("frydman_functions.R")
+source("frydman_plot.R")
+source("frydman_em.R")
 debugSource("aux_frydman.R")
 
 #### Data generation ####
@@ -67,7 +73,7 @@ A_m <- as.interval(matrix(c(L_m, R_m), ncol = 2, byrow = F))
 A_u <- as.interval(matrix(c(L_u, t_u), ncol = 2, byrow = F))
 W = M + U
 
-##### M': W := M + U < m <= M', R_{W+c} = t_{W+c} ####
+##### M': W := M + U < m <= M' = W+C, R_{W+c} = t_{W+c} ####
 A_c <- as.interval(matrix(c(L_c, t_c), ncol = 2, byrow = F))
 
 ##### full_A_m: A_m ∪ A_u ∪ A_c ####
@@ -125,3 +131,26 @@ I_mark <- I + K
 
 z_i <- runif(I_mark)
 lambda_n <- runif(N)
+
+##### testing frydman functions #### 
+alpha_ij <- cal_alpha(Q_full, s_j_full)
+beta_im <- cal_beta(Q_i, full_A_m)
+# mu_mi <- cal_mu_MI(z_i, lambda_n, beta_im, Q_i, A_m, T_star)
+
+
+##### TESTING SETUP ####
+res_em <- em_estimate(z_init = z_i, lambda_init = lambda_n, Q_full, s_j_full, Q_i, full_A_m, A_m, A_u, A_c, T_star, E_star, t_m, t_u, t_c, N_star, d_n, c_k, I_mark,J, M, W, K_tilde, N1_obs_of_T_star, verbose = T, max_iter = 200)
+
+res_em
+
+# We would expect sum z_p to be = 1
+stopifnot(sum(res_em$z) - 1 < 1e-10)
+
+estimators <- calc_F_and_hazards(
+  grid_points = seq(0, 20, by = 0.5),
+  z_i = res_em$z, lambda = res_em$lambda, Q_i, T_star, E_star
+)
+
+plot_estimators_gg(estimators)
+
+

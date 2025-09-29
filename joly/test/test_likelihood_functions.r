@@ -1,8 +1,8 @@
 library(testthat)
 
 
-setwd("/home/rasmus-emil/github/thesis")
-source("likelihood_hazard_splines.R")
+setwd("/home/rasmus-emil/github/thesis/joly/")
+source("likelihood_functions.R")
 
 
 test_that("case_1_likelihood_calculates_correctly_for_linear_splines", {
