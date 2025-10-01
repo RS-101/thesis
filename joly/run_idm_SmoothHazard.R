@@ -1,8 +1,8 @@
 library(SmoothHazard)
 library(prodlim)
+d_full <- simulate_idm_weibull(10000)
 
-d <- res_w_ic$obs
-
+d <- d_full$obs
 # Build interval-censored illness (0->1)
 d$seen_ill  <- !is.na(d$V_ill)
 d$L <- d$V_healthy
@@ -17,20 +17,56 @@ fit_spl <- idm(
   formula02 = Hist(time = T_obs,       event = seen_exit) ~ 1,
   formula12 = Hist(time = T_obs,       event = seen_exit) ~ 1,
   data      = d,
-  method    = "Splines",     # spline baseline hazards
-  n.knots   = c(9, 9, 9),    # reasonable smoothness
-  CV        = F,          # tune smoothing (kappa) via approx. CV
-  conf.int  = TRUE
+  #method    = "Splines",     # spline baseline hazards
+  #n.knots   = c(9, 9, 9),    # reasonable smoothness
+  #CV        = F,          # tune smoothing (kappa) via approx. CV
+  #conf.int  = TRUE
 )
 
 print(fit_spl)
 
-# Plot baseline transition intensities
-op <- par(mfrow = c(1, 3), mar = c(4,4,2,1))
-plot(fit_spl, transition = "01", conf.int = TRUE, xlab = "Time", ylab = "h01(t)")
-title("0 -> 1 (illness)")
-plot(fit_spl, transition = "02", conf.int = TRUE, xlab = "Time", ylab = "h02(t)")
-title("0 -> 2 (death without illness)")
-plot(fit_spl, transition = "12", conf.int = TRUE, xlab = "Time", ylab = "h12(t)")
-title("1 -> 2 (death after illness)")
-par(op)
+plot(fit_spl)
+
+h_weibull <- function(t, shape, scale) {
+  t <- pmax(as.numeric(t), .Machine$double.eps)
+  (shape / scale) * (t / scale)^(shape - 1)
+}
+
+a12 <- function(t) h_weibull(t, fit_spl$modelPar[1], fit_spl$modelPar[2])  # 1 -> 2
+a13 <- function(t) h_weibull(t, fit_spl$modelPar[3], fit_spl$modelPar[4])  # 1 -> 3
+a23 <- function(t) h_weibull(t, fit_spl$modelPar[5], fit_spl$modelPar[6])  # 2 -> 3 
+
+funs <- list(
+  a01 = a12,
+  a02 = a13,
+  a12 = a23,
+  true_a01 = d_full$true_data_generation$hazards$a12,
+  true_a02 = d_full$true_data_generation$hazards$a13,
+  true_a12 = d_full$true_data_generation$hazards$a23
+)
+
+# Grid of x values
+xvals <- seq(0, 1, length.out = 200)
+
+
+
+# Evaluate each function
+df <- lapply(names(funs), function(nm) {
+  data.frame(
+    x = xvals,
+    y = sapply(xvals, funs[[nm]]),
+    fun = nm
+  )
+}) %>% bind_rows()
+
+df <- df %>% mutate(type = ifelse(str_detect(fun, "true"), "true", "estimate"))
+
+
+# Plot
+ggplot(df, aes(x = x, y = y, colour = fun)) +
+  geom_line(size = 1, aes(linetype = type)) +
+  labs(title = "Spline hazard",
+       x = "x", y = "value") +
+  theme_minimal()
+
+
