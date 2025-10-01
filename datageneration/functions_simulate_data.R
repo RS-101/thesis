@@ -495,13 +495,12 @@ simulate_idm_constant_hazards <- function(
     a13 = 0.2,
     a23 = 0.3, 
     verbose = T) {
-
-a12_const <- function(t) rep(a12, length(t))
-a13_const <- function(t) rep(a13, length(t))
-a23_const <- function(s) rep(a23, length(s))
-simulate_idm(n, a12_const, a13_const, a23_const, verbose = verbose)
+  
+  a12_const <- function(t) rep(a12, length(t))
+  a13_const <- function(t) rep(a13, length(t))
+  a23_const <- function(s) rep(a23, length(s))
+  simulate_idm(n, a12_const, a13_const, a23_const, verbose = verbose)
 }
-
 # res_constant <- simulate_idm_constant_hazards(n = 1000)
 
 simulate_idm_weibull <- function(
@@ -527,7 +526,6 @@ simulate_idm_weibull <- function(
   
   simulate_idm(n, a12, a13, a23, verbose = verbose)
 }
-
 # res_weibull <- simulate_idm_weibull()
 
 
@@ -538,7 +536,6 @@ simulate_idm_poly <- function(n = 1000, verbose = TRUE) {
   
   simulate_idm(n, a12, a13, a23, verbose = verbose)
 }
-
 # res_poly <- simulate_idm_poly()
 
 
