@@ -53,8 +53,8 @@ cal_mu_MI <- function(z_i, lambda_n, beta_im, Q_i, A_m, T_star) {
       product_over_t_stars(
         intervals = as.interval(
           matrix(c(r_i, R[m]), ncol = 2),
-          L_open = T,
-          R_open = F
+          L_open = TRUE,
+          R_open = FALSE
         ),
         T_star = T_star,
         lambda_n = lambda_n
@@ -69,6 +69,7 @@ cal_mu_MI <- function(z_i, lambda_n, beta_im, Q_i, A_m, T_star) {
   mu
 }
 
+
 ##### μ_bar_mi(z, ɑ) ∈ J x I', ####
 cal_mu_bar_JI_mark <- function(alpha_ij, z_i, J) {
   I_mark <- nrow(alpha_ij)
@@ -82,11 +83,10 @@ cal_mu_bar_JI_mark <- function(alpha_ij, z_i, J) {
 ##### η_ji(z,λ,β,Q,A_m) ∈ U x I', ####
 cal_eta_UI_mark <- function(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_u, M) {
   # Map between t_u and λ_n
-  
   U <- nrow(A_u)
   I <- nrow(beta_im)
   I_mark <- length(z_i)
-
+  
   eta_ui <- matrix(nrow = U, ncol = I_mark)
   
   r_i <- Q_i[, 2]
@@ -96,8 +96,8 @@ cal_eta_UI_mark <- function(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_
       product_over_t_stars(
         intervals = as.interval(
           matrix(c(r_i, t_u[u]), ncol = 2),
-          L_open = T,
-          R_open = T
+          L_open = TRUE,
+          R_open = TRUE
         ),
         T_star = T_star,
         lambda_n = lambda_n
@@ -124,21 +124,21 @@ cal_eta_UI_mark <- function(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_
 # eta_ui <- cal_eta_UI_mark(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_u)
 
 ##### γ_ji() ∈ C x I', ####
-cal_gamma_CI_mark <- function(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im, z_i, W) {
+cal_gamma_CI_mark <- function(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im, z_i, W, J) {
   I <- nrow(Q_i)
   C <- nrow(A_c)
   I_mark <- length(z_i)
   gamma_ci <- matrix(nrow = C, ncol = I_mark)
   r_i <- Q_i[, 2]
   
-  if(C == 0) return(gamma_ci)
+  if (C == 0) return(gamma_ci)
   for (c in 1:C) {
     prod_res <- unlist(lapply(r_i, function(r_i) {
       product_over_t_stars(
         intervals = as.interval(
           matrix(c(r_i, t_c[c]), ncol = 2),
-          L_open = T,
-          R_open = F
+          L_open = TRUE,
+          R_open = FALSE
         ),
         T_star = T_star,
         lambda_n = lambda_n
@@ -148,7 +148,7 @@ cal_gamma_CI_mark <- function(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im
     denum <- sum(prod_res * beta_im[1:I, (W + c)] * z_i[1:I]) + sum(alpha_ij[, (J + c)] * z_i)      
     for (i in 1:I_mark) {
       if (i <= I) {
-        gamma_ci[c,i] <- alpha_ij[i,(J+c)]*z_i[i]/denum+
+        gamma_ci[c,i] <- alpha_ij[i,(J+c)]*z_i[i]/denum +
           (prod_res[i]*beta_im[i,(W+c)]*z_i[i])/denum
       } else if (i <= I_mark) {
         gamma_ci[c,i] <- alpha_ij[i,(J+c)]*z_i[i]/denum
@@ -158,6 +158,7 @@ cal_gamma_CI_mark <- function(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im
   
   gamma_ci
 }
+
 
 ##### ρ ∈ M x N ####
 cal_rho_MN <- function(t_m, T_star, A_m, mu_mi, Q_i) {
@@ -169,12 +170,12 @@ cal_rho_MN <- function(t_m, T_star, A_m, mu_mi, Q_i) {
   for (n in 1:N) {
     for (m in 1:M) {
       if (t_m[m] >= T_star[n]) {
-        int_L_t <- as.interval(matrix(rep(c(A_m[m,1], T_star[n]), I), ncol = 2, byrow = T), L_open = F, R_open = T)
-        rho_mn[m,n] <- sum(
-          mu_mi[m,1:I]*is_subset(Q_i, int_L_t)
+        int_L_t <- as.interval(
+          matrix(rep(c(A_m[m,1], T_star[n]), I), ncol = 2, byrow = TRUE),
+          L_open = FALSE, R_open = TRUE
         )
-      } else
-      {
+        rho_mn[m,n] <- sum(mu_mi[m,1:I] * is_subset(Q_i, int_L_t))
+      } else {
         rho_mn[m,n] <- 0
       }
     }
@@ -187,46 +188,45 @@ cal_pi_UN <- function(t_u, T_star, A_u, eta_ui, Q_i) {
   U <- length(t_u)
   N <- length(T_star)
   I <- nrow(Q_i)
-  pi_un <- matrix(nrow = U,ncol = N)
+  pi_un <- matrix(nrow = U, ncol = N)
   
   for (n in 1:N) {
     for (u in 1:U) {
       if (t_u[u] >= T_star[n]) {
-        int_L_t <- as.interval(matrix(rep(c(A_u[u,1], T_star[n]), I), ncol = 2, byrow = T), L_open = F, R_open = T)
-        pi_un[u,n] <- sum(
-          eta_ui[u,1:I]*is_subset(Q_i, int_L_t)
+        int_L_t <- as.interval(
+          matrix(rep(c(A_u[u,1], T_star[n]), I), ncol = 2, byrow = TRUE),
+          L_open = FALSE, R_open = TRUE
         )
-      } else
-      {
+        pi_un[u,n] <- sum(eta_ui[u,1:I] * is_subset(Q_i, int_L_t))
+      } else {
         pi_un[u,n] <- 0
       }
-      
     }
   }  
   pi_un
 }
 
+
 # pi_un <- cal_pi_UN(t_u, T_star, A_u, eta_ui, Q_i)
 ##### σ ∈ C x N ####
 cal_sigma_CN <- function(t_c, T_star, A_c, gamma_ci, Q_i) {
-  
   C <- length(t_c)
   N <- length(T_star)
+  I <- nrow(Q_i)
   
   sigma_cn <- matrix(nrow = C, ncol = N)
   
   for (n in 1:N) {
     for (c in 1:C) {
       if (t_c[c] >= T_star[n]) {
-        int_L_t <- as.interval(matrix(rep(c(A_c[c,1], T_star[n]), I), ncol = 2, byrow = T), L_open = F, R_open = T)
-        sigma_cn[c,n] <- sum(
-          gamma_ci[c,1:I]*is_subset(Q_i, int_L_t)
+        int_L_t <- as.interval(
+          matrix(rep(c(A_c[c,1], T_star[n]), I), ncol = 2, byrow = TRUE),
+          L_open = FALSE, R_open = TRUE
         )
-      } else
-      {
+        sigma_cn[c,n] <- sum(gamma_ci[c,1:I] * is_subset(Q_i, int_L_t))
+      } else {
         sigma_cn[c,n] <- 0
       }
-      
     }
   }  
   sigma_cn
