@@ -99,7 +99,7 @@ plot.full_spline_hazard <- function(x,
     df,
     ggplot2::aes(x = x, y = y, color = fun, linetype = type)
   ) +
-    ggplot2::geom_line(size = 1, alpha = 0.8) +
+    ggplot2::geom_line(linewidth = 1, alpha = 0.8) +
     ggplot2::scale_linetype_manual(values = c(estimate = "dashed", true = "solid")) +
     ggplot2::labs(
       title = title,

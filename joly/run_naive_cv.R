@@ -1,4 +1,5 @@
 source("datageneration/functions_simulate_data.R")
+source("joly/functions_plot.R")
 debugSource("joly/function_perform_cv.R")
 
 library(tidyverse)
@@ -26,3 +27,4 @@ cv_res$best
 res_full <- cv_res$final_fit
 
 
+plot(res_full$hazards, simulated_data$true_data_generation$hazards, cumulative = F, xlim = c(0,1))

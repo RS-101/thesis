@@ -24,7 +24,7 @@ cv_penalized_splines <- function(sim_dat,
   row_id <- 0L
   
   for (nk in n_knots_grid) {
-    for (lam in seq_along(rows_pen_vals)) {
+    for (lam in seq_len(rows_pen_vals)) {
       row_id <- row_id + 1L
       if (verbose) {
         message(sprintf(
@@ -82,7 +82,9 @@ cv_penalized_splines <- function(sim_dat,
       
       results[[row_id]] <- data.frame(
         n_knots          = nk,
-        lambda           = pen_vals[lam,],
+        lambda_12           = pen_vals[lam, 1],
+        lambda_13           = pen_vals[lam, 2],
+        lambda_23           = pen_vals[lam, 3],
         oof_loglik_total = total_ll_oof,
         oof_loglik_mean  = mean_ll_oof,
         train_loglik_mean= mean_ll_tr,
@@ -101,7 +103,9 @@ cv_penalized_splines <- function(sim_dat,
   final_fit <- do_likelihood_optim(sim_dat,
                                    n_knots  = best$n_knots,
                                    degree   = degree,
-                                   penalizer= best$lambda)
+                                   penalizer= c(best$lambda_12,
+                                                best$lambda_13,
+                                                best$lambda_23) )
   
   list(
     cv_table  = cv_table[order(-cv_table$oof_loglik_mean), ],

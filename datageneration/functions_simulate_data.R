@@ -329,6 +329,10 @@ verify_illness_death <- function(
                 mean(got_ill) + mean(dir_death), P12 + P13))
   }
   
+  
+  hazards = list(a12 = a12, a13 = a13, a23 = a23)
+  class(hazards) <- c(class(hazards), "full_hazard")
+  
   # 6) Return evaluators
   list(
     sim = sim,
@@ -348,7 +352,7 @@ verify_illness_death <- function(
     # Death time | path 1->2->3 (calendar time)
     pdf_death_given_123 = stats::approxfun(t_grid, f_death_123, rule = 2),
     cdf_death_given_123 = stats::approxfun(t_grid, F_death_123, rule = 2),
-    hazards = list(a12 = a12, a13 = a13, a23 = a23),
+    hazards = hazards,
     theory = list(
       t_grid = t_grid, S1 = S1, f12 = f12, f13 = f13, f_first = f_first,
       F12 = F12, F13 = F13, F_first = F_first, P12 = P12, P13 = P13,

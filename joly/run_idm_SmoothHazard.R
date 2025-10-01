@@ -1,6 +1,6 @@
 library(SmoothHazard)
 library(prodlim)
-d_full <- simulate_idm_weibull(10000)
+d_full <- simulate_idm_weibull(100)
 
 d <- d_full$obs
 # Build interval-censored illness (0->1)
@@ -17,10 +17,10 @@ fit_spl <- idm(
   formula02 = Hist(time = T_obs,       event = seen_exit) ~ 1,
   formula12 = Hist(time = T_obs,       event = seen_exit) ~ 1,
   data      = d,
-  #method    = "Splines",     # spline baseline hazards
-  #n.knots   = c(9, 9, 9),    # reasonable smoothness
-  #CV        = F,          # tune smoothing (kappa) via approx. CV
-  #conf.int  = TRUE
+  method    = "Splines",     # spline baseline hazards
+  n.knots   = c(9, 9, 9),    # reasonable smoothness
+  CV        = F,          # tune smoothing (kappa) via approx. CV
+  conf.int  = TRUE
 )
 
 print(fit_spl)
