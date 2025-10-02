@@ -216,7 +216,9 @@ static inline bool closed_subset_of(double a, double b, double L, double R, bool
   return left && right;
 }
 
+
 // product over t* in interval (L,R) with flags
+// [[Rcpp::export]]
 static inline double product_over_t_stars_interval(double L, double R, bool L_open, bool R_open,
                                                    const Rcpp::NumericVector& T_star,
                                                    const Rcpp::NumericVector& lambda_n) {
@@ -284,7 +286,7 @@ void cal_mu_MI(const ModelData& md, Workspace& ws) {
   const int I = md.Q_i.nrow();
   const int M = md.A_m.nrow();
   ws.mu_mi = Rcpp::NumericMatrix(M, I);
-  
+  // For debug: Rcpp::Rcout << "[lambda=" << ws.lambda_n << "] z_i=" << ws.z_i << "\\n";
   // r_i are Q_i[,2], R_m are A_m[,2]
   Rcpp::NumericVector r_i(I), Rm(M);
   for (int i = 0; i < I; ++i) r_i[i] = md.Q_i(i,1);
@@ -309,7 +311,7 @@ void cal_mu_MI(const ModelData& md, Workspace& ws) {
       ws.mu_mi(m,i) = (num != 0.0 && denom != 0.0) ? (num / denom) : 0.0;
     }
   }
-  na0_inplace(ws.mu_mi);
+  // For debug: Rcpp::Rcout << std::flush; // ensure it appears even if an error follows
 }
 
 // ---------- \bar{μ}_{ji} : J x I' ----------
@@ -685,8 +687,8 @@ Rcpp::List em_fit(SEXP md_ptr,
   Workspace ws;
   
   // initialize if provided
-  if (z_init.isNotNull())  ws.z_i = Rcpp::NumericVector(z_init.get());
-  if (lambda_init.isNotNull()) ws.lambda_n = Rcpp::NumericVector(lambda_init.get());
+  if (z_init.isNotNull())  ws.z_i = clone(Rcpp::NumericVector(z_init.get()));
+  if (lambda_init.isNotNull()) ws.lambda_n = clone(Rcpp::NumericVector(lambda_init.get()));
   
   em_estimate(md, ws, max_iter, tol, verbose);
   

@@ -3,10 +3,7 @@
 # !!!DANGER SHOULD IT BE SHARP OR NOT!!!
 # alpha is a I' x (J+C) matrix ~ alpha_ij = I(Q_i_full subset [s_j_full,inf)).
 
-cal_alpha <- function(Q_full, s_j_full) {
-  Q_i <- Q_full[[1]]
-  Q_i_mark <- Q_full[[2]]
-  
+cal_alpha <- function(Q_i, Q_i_mark, s_j_full) {
   I <- nrow(Q_i)
   I_mark <- I + length(Q_i_mark)
   J_p_C <- length(s_j_full)
@@ -50,12 +47,10 @@ cal_mu_MI <- function(z_i, lambda_n, beta_im, Q_i, A_m, T_star) {
   
   for (m in 1:M) {
     prod_res <- unlist(lapply(r_i, function(r_i) {
-      product_over_t_stars(
-        intervals = as.interval(
-          matrix(c(r_i, R[m]), ncol = 2),
-          L_open = TRUE,
-          R_open = FALSE
-        ),
+      product_over_t_stars_one_interval(
+        r_i, R[m],
+        L_open = TRUE,
+        R_open = FALSE,
         T_star = T_star,
         lambda_n = lambda_n
       )
@@ -93,12 +88,10 @@ cal_eta_UI_mark <- function(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_
   for (u in 1:U) {
     lambda_M_p_u <- lambda_n[T_star == t_u[u]]
     prod_res <- unlist(lapply(r_i, function(r_i) {
-      product_over_t_stars(
-        intervals = as.interval(
-          matrix(c(r_i, t_u[u]), ncol = 2),
-          L_open = TRUE,
-          R_open = TRUE
-        ),
+      product_over_t_stars_one_interval(
+        r_i, t_u[u],
+        L_open = TRUE,
+        R_open = TRUE,
         T_star = T_star,
         lambda_n = lambda_n
       )
@@ -134,12 +127,10 @@ cal_gamma_CI_mark <- function(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im
   if (C == 0) return(gamma_ci)
   for (c in 1:C) {
     prod_res <- unlist(lapply(r_i, function(r_i) {
-      product_over_t_stars(
-        intervals = as.interval(
-          matrix(c(r_i, t_c[c]), ncol = 2),
-          L_open = TRUE,
-          R_open = FALSE
-        ),
+      product_over_t_stars_one_interval(
+        r_i, t_c[c],
+        L_open = TRUE,
+        R_open = FALSE,
         T_star = T_star,
         lambda_n = lambda_n
       )

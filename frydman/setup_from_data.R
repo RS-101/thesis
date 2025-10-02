@@ -1,5 +1,3 @@
-debugSource("frydman/setup_helper_functions.R")
-
 setup_frydman <- function(data) {
   
   data <- as.data.table(data)

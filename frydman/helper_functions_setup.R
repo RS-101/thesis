@@ -156,8 +156,16 @@ make_Q <- function(L_bar, R_bar) {
 product_over_t_stars <- function(intervals, T_star, lambda_n) {
   if(!inherits(intervals, "interval")) stop("intervals need to be of type interval")
   T_stars_to_prod_over <- intersect(T_star, intervals)
-  lambda_n[which(T_star %in% T_stars_to_prod_over)]
-  prod(1-lambda_n)
+  prod_lambdas <- lambda_n[which(T_star %in% T_stars_to_prod_over)]
+  prod(1-prod_lambdas)
 }
+
+product_over_t_stars_one_interval <- function(L, R, L_open, R_open,T_star, lambda_n) {
+  intervals <- as.interval(matrix(c(L, R), ncol = 2), L_open, R_open)
+  T_stars_to_prod_over <- intersect(T_star, intervals)
+  prod_lambdas <- lambda_n[which(T_star %in% T_stars_to_prod_over)]
+  prod(1-prod_lambdas)
+}
+
 
 

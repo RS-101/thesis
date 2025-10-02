@@ -1,6 +1,6 @@
 library(SmoothHazard)
 library(prodlim)
-d_full <- simulate_idm_weibull(100)
+d_full <- simulate_idm_weibull(1000)
 
 d <- d_full$obs
 # Build interval-censored illness (0->1)
@@ -19,7 +19,7 @@ fit_spl <- idm(
   data      = d,
   method    = "Splines",     # spline baseline hazards
   n.knots   = c(9, 9, 9),    # reasonable smoothness
-  CV        = F,          # tune smoothing (kappa) via approx. CV
+  CV        = T,          # tune smoothing (kappa) via approx. CV
   conf.int  = TRUE
 )
 
