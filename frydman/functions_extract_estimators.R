@@ -30,7 +30,7 @@ step_cdf <- function(grid_points, times, masses, ...) {
   time_order <- order(times)
   times <- times[time_order]
   masses <- masses[time_order]
-  cs <- cumsum(masses)
+  cs <- pmax(cumsum(masses),0)
   idx <- findInterval(grid_points, times, ...)
   c(0,cs)[idx+1]
 }

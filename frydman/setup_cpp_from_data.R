@@ -1,5 +1,7 @@
 library(Rcpp)
+library(data.table)
 sourceCpp("frydman/functions_em.cpp")
+source("frydman/helper_functions_setup_for_R.R")
 
 to_mat <- function(x) if (is.matrix(x)) x else as.matrix(unclass(x))
 
@@ -93,7 +95,7 @@ setup_frydman_cpp <- function(data) {
   ##### I: Q_i = [l_i,r_i] ####
   
   # s_max = max(s_j, 1 <= j <= J)
-  s_max <- max(s_j)
+  s_max <- ifelse(length(s_j) > 0 ,max(s_j),0)
   
   # R_max = max(R_m, 1 <= m <= W)
   R_max <- max(A_m[, 2], A_u[, 2])

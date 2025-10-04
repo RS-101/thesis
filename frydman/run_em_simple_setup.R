@@ -106,7 +106,7 @@ L_bar <- c(
 R_bar <- c(full_A_m[1:(M + U), 2], Inf)
 
 # !!!DANGER I AM UNSURE ABOUT THE CREATION OF Q!!!
-Q_i <- make_Q(L_bar, L_bar)
+Q_i <- make_Q(L_bar, R_bar)
 
 Q <- get_interval(Q_i)
 
