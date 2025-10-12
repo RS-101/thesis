@@ -630,14 +630,14 @@ void em_estimate(const ModelData& md, Workspace& ws, int max_iter, double tol, b
     ws.lambda_n = Rcpp::runif(N); // simple init, user can overwrite before call
   }
   
+  cal_alpha(md, ws);
+  cal_beta(md, ws);
+  
   for (int iter = 0; iter < max_iter; ++iter) {
     Rcpp::NumericVector z_prev = Rcpp::clone(ws.z_i);
     Rcpp::NumericVector l_prev = Rcpp::clone(ws.lambda_n);
     
     // E-step pieces
-    cal_alpha(md, ws);
-    cal_beta(md, ws);
-    
     cal_mu_MI(md, ws);
     cal_mu_bar_JI_mark(md, ws);
     cal_eta_UI_mark(md, ws);
