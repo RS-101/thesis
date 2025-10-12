@@ -1,3 +1,344 @@
+source("frydman/helper_functions.R")
+
+#### Helper function ####
+##### Interval manipulation #####
+###### intersect ######
+# generic
+intersect <- function(x, y, ...) {
+  if (inherits(x, "interval")) {
+    UseMethod("intersect", x)
+  } else if (inherits(y, "interval")) {
+    UseMethod("intersect", y)
+  } else {
+    base::intersect(x, y, ...)
+  }
+}
+
+intersect.default <- function(x, y, ...) base::intersect(x, y, ...)
+
+intersect.interval <- function(x, y) {
+  if (inherits(y, "interval") & inherits(x, "numeric")) {
+    x_temp <- x
+    x <- y
+    y <- x_temp
+  }
+  
+  if(inherits(y, "numeric")) {
+    L <- matrix(rep(x[,1], length(y)),ncol = nrow(x), byrow = T)
+    R <- matrix(rep(x[,2], length(y)),ncol = nrow(x), byrow = T)
+    
+    if (inherits(x, "c_c")) {
+      sel <- L <= y & y <= R
+    } else if (inherits(x, "c_o")) {
+      sel <- L <= y & y < R
+    } else if (inherits(x, "o_c")) {
+      sel <- L < y & y <= R
+    } else if (inherits(x, "o_o")) {
+      sel <- L < y & y < R
+    }
+    res = y[1 <= rowSums(sel)]
+    return(res)
+  } else if (inherits(y, "interval")) {
+    stop("not implemented")
+    if (inherits(x, "c_c")) {
+      
+    } else if (inherits(x, "c_o")) {
+      
+    } else if (inherits(x, "o_c")) {
+      
+    } else if (inherits(x, "o_o")) {
+      
+    }
+  }
+  stop("y should be numeric or interval")
+}
+
+###### get_interval ######
+
+# generic
+get_interval <- function(x, ...) {
+  UseMethod("get_interval")
+}
+
+get_interval.matrix <- function(m, L_open = F, R_open = F) {
+  if (ncol(m) != 2) stop("LR mat must be of dim m x 2")
+  type = paste(ifelse(L_open, "o", "c"), ifelse(R_open, "o", "c"), sep = "_")
+  if(nrow(m) > 1) {
+    
+    m <- unique(m)
+    m_sorted <- m[order(m[, 1]), ]
+    
+    L <- m_sorted[,1][-1]
+    R <- m_sorted[,2][-nrow(m)]
+    
+    
+    if(L_open & R_open) {
+      start_stop <- !(L < R)
+    } else {
+      start_stop <- !(L <= R)
+    }
+    interval_start <- c(min(m_sorted),L[start_stop])
+    interval_end <- c(R[start_stop], max(m_sorted))
+    res <- matrix(c(interval_start, interval_end),byrow = F, ncol = 2)
+  } else {
+    res <- m
+  }
+  class(res) <- c("interval", type, class(res))
+  res
+}
+
+
+###### as.interval ######
+
+as.interval <- function(x, L_open = F, R_open = F) {
+  if (ncol(x) != 2) stop("LR mat must be of dim m x 2")
+  type = paste(ifelse(L_open, "o", "c"), ifelse(R_open, "o", "c"), sep = "_")
+  
+  class(x) <- c("interval", type, class(x))
+  x
+}
+
+###### contains ######
+
+# generic
+is_subset <- function(A, B, ...) {
+  UseMethod("is_subset")
+}
+
+# checks if A ⊂ B
+is_subset.interval <- function(A, B, strict_subset = F) {
+  
+  if(!(inherits(B, "interval") & all(dim(A) == dim(B)))) stop("B should be an of same dim as A interval")
+  
+  if (inherits(B, "c_c")) {
+    l_compare <- `<=`
+    r_compare <- `<=`
+  } else if (inherits(B, "c_o")) {
+    l_compare <- `<=`
+    r_compare <- `<`
+  } else if (inherits(B, "o_c")) {
+    l_compare <- `<`
+    r_compare <- `<=`
+  } else if (inherits(B, "o_o")) {
+    l_compare <- `<`
+    r_compare <- `<`
+  }
+  
+  if (inherits(A, "c_c")) {
+  } else if (inherits(A, "c_o")) {
+    r_compare <- `<=`
+  } else if (inherits(A, "o_c")) {
+    l_compare <- `<=`
+  } else if (inherits(A, "o_o")) {
+    l_compare <- `<=`
+    r_compare <- `<=`
+  }
+  
+  return(l_compare(B[,1],A[,1]) & r_compare(A[,2],B[,2]))
+}
+
+
+
+
+##### From paper specific #####
+
+make_Q <- function(L_bar, R_bar) {
+  L_bar <- sort(L_bar[!is.na(L_bar)])
+  R_bar <- sort(R_bar[!is.na(R_bar)])
+  Q <- matrix(c(rep(0L, length(L_bar)), rep(1L, length(R_bar)), 
+                L_bar, R_bar), ncol = 2)
+  Q <- Q[order(Q[,2]), ]
+  tag <- which(diff(Q[, 1], 1) == 1)
+  Q <- matrix(c(Q[tag, 2], Q[tag + 1, 2]), ncol = 2)
+  
+  Q <- as.interval(Q, L_open = F, R_open = F)
+  Q
+}
+
+# Comment: the intervals input determines if the interval is open or closed
+product_over_t_stars <- function(intervals, T_star, lambda_n) {
+  if(!inherits(intervals, "interval")) stop("intervals need to be of type interval")
+  T_stars_to_prod_over <- intersect(T_star, intervals)
+  prod_lambdas <- lambda_n[which(T_star %in% T_stars_to_prod_over)]
+  prod(1-prod_lambdas)
+}
+
+product_over_t_stars_one_interval <- function(L, R, L_open, R_open,T_star, lambda_n) {
+  intervals <- as.interval(matrix(c(L, R), ncol = 2), L_open, R_open)
+  T_stars_to_prod_over <- intersect(T_star, intervals)
+  prod_lambdas <- lambda_n[which(T_star %in% T_stars_to_prod_over)]
+  prod(1-prod_lambdas)
+}
+
+
+
+
+
+
+#### Prepare data frame to count data ####
+prepare_data_R <- function(data) {
+  
+  data <- as.data.table(data)
+  if(isFALSE("id" %in% names(data))) {data[, id:= .I]}
+  
+  stopifnot(all(sort(names(data)) == sort(c("id", "V_0", "V_healthy",
+                                            "V_ill", "T_obs", "status"))))
+  
+  
+  
+  # case 1
+  case_1 <- data[status == 1]
+  case_1_exact <- case_1[V_healthy == T_obs]
+  
+  J <- case_1_exact[,.N]
+  s_j <- case_1_exact$T_obs
+  
+  
+  case_1_rest <- case_1[!(V_healthy == T_obs)]
+  C <- case_1_rest[,.N]
+  L_c <- case_1_rest$V_healthy
+  t_c <- case_1_rest$T_obs
+  
+  # case 2
+  case_2 <- data[status == 2]
+  case_2_exact <- case_2[V_healthy == T_obs]
+  K_tilde <- case_2_exact[,.N]
+  e_k <- case_2_exact$T_obs
+  
+  case_2_rest <- case_2[!(V_healthy == T_obs)]
+  U <- case_2_rest[,.N]  
+  L_u <- case_2_rest$V_healthy
+  t_u <- case_2_rest$T_obs
+  
+  # case 4
+  case_4 <- data[status == 4]
+  N_tilde <- case_4[,.N]  
+  t_m_in_N_tilde <- case_4$T_obs
+  
+  # case 3
+  case_3 <- data[status == 3]
+  case_3_4 <- data[status %in% c(3,4)]
+  M <- case_3_4[,.N]
+  
+  L_m <- case_3_4$V_healthy
+  R_m <- case_3_4$V_ill
+  t_m <- case_3_4$T_obs
+  
+  ##### K: E* - Obs and potential 1 -> 3 ####
+  E_star <- unique(c(e_k, t_u))
+  #c_k <- as.numeric(table(factor(c(e_k, t_u), levels = E_star)))
+  # DANGER CHAT SAYS THAT THIS IS CORRECT
+  # as sum(c_k) then is equal to K_tilde, otherwise K < sum(c_k) <= K + U, with = when e_k ∩ t_u = ∅
+  c_k <- as.numeric(table(factor(e_k, levels = E_star)))
+  K <- length(E_star)
+  
+  ##### N: T* - Obs and potential entry to state 3 from state 2: 1 -> 2 -> 3 ####
+  T_star <- unique(c(t_m_in_N_tilde, t_u))
+  d_n <- as.numeric(table(factor(c(t_m_in_N_tilde, t_u), levels = T_star)))
+  
+  N1_obs_of_T_star <- length(unique(t_m_in_N_tilde))
+  U_pos_obs_of_T_star <- length(setdiff(unique(t_u), unique(t_m_in_N_tilde)))
+  
+  N <- length(T_star)
+  
+  ##### Total: N* = M + U + C + K_tilde + J ####
+  N_star <- M + U + C + K_tilde + J # Total count
+  
+  ##### Max 1 -> 2: M' = M + U + C ####
+  M_mark <- M + U + C # Max number through 2.
+  
+  #### Creation of A sets ####
+  
+  ##### M: A_m := [L_m, R_m] ####
+  A_m <- as.interval(matrix(c(L_m, R_m), ncol = 2, byrow = F))
+  
+  ##### W: M < m <= W := M + U, R_{M+u} = t_{M+u} ####
+  A_u <- as.interval(matrix(c(L_u, t_u), ncol = 2, byrow = F))
+  W = M + U
+  
+  ##### M': W := M + U < m <= M', R_{W+c} = t_{W+c} ####
+  A_c <- as.interval(matrix(c(L_c, t_c), ncol = 2, byrow = F))
+  
+  ##### full_A_m: A_m ∪ A_u ∪ A_c ####
+  full_A_m <- as.interval(rbind(A_m, A_u, A_c))
+  
+  ##### A := ⋃_{m=1}^{M'} A_m ####
+  A_union <- get_interval(full_A_m)
+  
+  #### Data manipulation ####
+  ##### I: Q_i = [l_i,r_i] ####
+  
+  # s_max = max(s_j, 1 <= j <= J)
+  s_max <- max(s_j)
+  
+  # R_max = max(R_m, 1 <= m <= W)
+  R_max <- max(A_m[, 2], A_u[, 2])
+  
+  # e*_max = max(e*_k, 1 <= k <= K)
+  e_star_max <- max(E_star)
+  
+  # L_bar ={L_m, 1 <= m <= M'} ∪ {T* ∩ A} ∪ {S_J ∩ A} ∪ {s_max : s_max > R_max ∨ e*_max}
+  L_bar <- c(
+    full_A_m[, 1],
+    intersect(A_union, T_star),
+    intersect(A_union, s_j),
+    na.omit(ifelse(s_max > max(R_max, e_star_max), s_max, NA))
+  )
+  
+  # R_bar = {R_m, 1 <= m <= W} ∪ {∞}
+  R_bar <- c(full_A_m[1:(M + U), 2], Inf)
+  
+  # !!!DANGER I AM UNSURE ABOUT THE CREATION OF Q!!!
+  Q_i <- make_Q(L_bar, L_bar)
+  
+  Q <- get_interval(Q_i)
+  
+  I <- nrow(Q_i)
+  
+  
+  ##### I'= K + I: Q_i' = e*_i-I ####
+  Q_i_mark <- E_star
+  
+  ##### Q_full = list ####
+  Q_full <- list(Q_i, Q_i_mark)
+  
+  ##### C: s_J+c = t_W+c ####
+  s_j_c <- t_c
+  
+  s_j_full <- c(s_j, s_j_c)
+  
+  
+  ##### N: lambda_n and I': z_i ####
+  # Comment: I believe we have I' z_i's and N: lambda_n
+  I_mark <- I + K
+  
+  
+  list(
+    Q_full   = Q_full,
+    s_j_full = s_j_full, # for cal_alpha
+    Q_i      = Q_i,
+    full_A_m = full_A_m, # for cal_beta
+    A_m      = A_m,
+    A_u      = A_u,
+    A_c      = A_c,      # for cal_* using M/U/C components
+    T_star   = T_star,
+    E_star   = E_star,   # for *star* arguments
+    t_m      = t_m,
+    t_u      = t_u,
+    t_c      = t_c,      # event-time indices for M/U/C
+    N_star   = N_star,   # denominator constant in (23)/(24)
+    d_n      = d_n,      # first-term vector in (25); include zeros if not applicable
+    c_k      = c_k,       # constants for i > I in (24); optional,
+    I_mark   = I_mark,
+    J        = J, 
+    M        = M,
+    W        = W,
+    K_tilde  = K_tilde,
+    N1_obs_of_T_star = N1_obs_of_T_star
+  )
+}
+
+
 
 #### Creating functions from (18) - (25) ####
 # !!!DANGER SHOULD IT BE SHARP OR NOT!!!
@@ -322,11 +663,11 @@ check_row_sums <- function(mu_mi, mu_bar_ji, eta_ui, gamma_ci, tol = 1e-6) {
     gamma = abs(rowSums(gamma_ci)  - 1)
   ))
 }
-
+#### Run EM function ####
 
 # EM to estimate (z, lambda) using Eqs. (23)–(25) and the provided helpers.
 # Required inputs are exactly those needed by the helper functions.
-em_estimate <- function(
+em_estimate_raw <- function(
     # Initial values
   z_init = NULL, lambda_init = NULL,
   # Data / design pieces used by the helper functions
@@ -460,6 +801,44 @@ em_estimate <- function(
     iterations = if (conv) iter else max_iter
   )
 }
+
+
+
+#### Wrapper ####
+get_npmle_r <- function(data, max_iter = 200, tol = 1e-8, verbose = FALSE) {
+  list_data <- prepare_data_R(data = data)
+  
+  res_em <- do.call(
+    em_estimate_raw,
+    c(list(
+      verbose = verbose,
+      max_iter = max_iter,
+      tol = tol
+    ),list_data)
+  )
+  
+  estimators <- calc_F_and_hazards(
+    grid_points = seq(0, 3, by = 0.01),
+    z_i = res_em$z, lambda = res_em$lambda, 
+    list_1$Q_full, list_1$T_star, list_1$E_star
+  )
+  
+  plot <- plot_estimators_gg(estimators)
+  
+  
+  list(
+    estimators = estimators,
+    plot = plot, 
+    settings = list(
+      data = data,
+      verbose = verbose,
+      max_iter = max_iter,
+      tol = tol
+    ))
+}
+  
+
+
 
 
 

@@ -3,8 +3,8 @@ source("datageneration/functions_simulate_data.R")
 source("joly/functions_plot.R")
 
 dat <- simulate_idm_constant_hazards(100)
-res_cv <- fit_idm(dat$obs)
 
+res_cv <- fit_idm(dat$obs)
 
 res_greedy <- fit_idm_greedy(dat$obs)
 

@@ -460,13 +460,13 @@ fit_idm <- function(data,
                     n_knots = 7,
                     degree  = 3,
                     knots   = NULL,
-                    kappa_values = NULL,
+                    kappa_values = 10^(-2:2),
+                    kappa_values_full = NULL,
                     verbose = TRUE) {
-  if (is.null(kappa_values)) {
-    kv <- 10^(-2:2)
-    kappa_values <- expand.grid(kv, kv, kv, KEEP.OUT.ATTRS = FALSE)
+  if (is.null(kappa_values_full)) {
+    kappa_values <- expand.grid(kappa_values, kappa_values, kappa_values, KEEP.OUT.ATTRS = FALSE)
   } else {
-    kappa_values <- as.data.frame(kappa_values, stringsAsFactors = FALSE)
+    kappa_values <- as.data.frame(kappa_values_full, stringsAsFactors = FALSE)
   }
   
   n <- nrow(kappa_values)
