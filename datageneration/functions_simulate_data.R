@@ -285,7 +285,7 @@ verify_illness_death <- function(
     geom_histogram(aes(x = first_time, y = after_stat(density)),
                    binwidth = fd_binwidth(first_time),
                    color = "grey40", fill = "grey80") +
-    geom_line(data = df_A, aes(t, f, color = "theory f_first(t)"), size = 1) +
+    geom_line(data = df_A, aes(t, f, color = "theory f_first(t)"), linewidth = 1) +
     labs(title = "First event time (min of illness/death)", x = "t", y = "Density", color = NULL) +
     theme_minimal(base_size = 11) +
     theme(legend.position = "top")
@@ -297,7 +297,7 @@ verify_illness_death <- function(
       geom_histogram(aes(x = xB, y = after_stat(density)),
                      binwidth = fd_binwidth(xB),
                      color = "grey40", fill = "grey80") +
-      geom_line(data = df_B, aes(t, f, color = "theory f12|ill(t)"), size = 1) +
+      geom_line(data = df_B, aes(t, f, color = "theory f12|ill(t)"), linewidth = 1) +
       labs(title = "Illness time | illness occurs", x = "t", y = "Density", color = NULL) +
       theme_minimal(base_size = 11) +
       theme(legend.position = "top")
@@ -314,7 +314,7 @@ verify_illness_death <- function(
       geom_histogram(aes(x = xC, y = after_stat(density)),
                      binwidth = fd_binwidth(xC),
                      color = "grey40", fill = "grey80") +
-      geom_line(data = df_C, aes(t, f, color = "theory f13|dir(t)"), size = 1) +
+      geom_line(data = df_C, aes(t, f, color = "theory f13|dir(t)"), linewidth = 1) +
       labs(title = "Direct death time | direct death", x = "t", y = "Density", color = NULL) +
       theme_minimal(base_size = 11) +
       theme(legend.position = "top")
@@ -330,7 +330,7 @@ verify_illness_death <- function(
       geom_histogram(aes(x = s_23, y = after_stat(density)),
                      binwidth = fd_binwidth(s_23),
                      color = "grey40", fill = "grey80") +
-      geom_line(data = df_D, aes(s, f, color = "mixture f_S(s)"), size = 1) +
+      geom_line(data = df_D, aes(s, f, color = "mixture f_S(s)"), linewidth = 1) +
       labs(title = "Ill → death elapsed time (sojourn s)", x = "s", y = "Density", color = NULL) +
       theme_minimal(base_size = 11) +
       theme(legend.position = "top")
@@ -346,7 +346,7 @@ verify_illness_death <- function(
       geom_histogram(aes(x = death_123, y = after_stat(density)),
                      binwidth = fd_binwidth(death_123),
                      color = "grey40", fill = "grey80") +
-      geom_line(data = df_E, aes(t, f, color = "theory f_T(t | 1→2→3)"), size = 1) +
+      geom_line(data = df_E, aes(t, f, color = "theory f_T(t | 1→2→3)"), linewidth = 1) +
       labs(title = "Death time | path 1→2→3 (calendar time)", x = "t", y = "Density", color = NULL) +
       theme_minimal(base_size = 11) +
       theme(legend.position = "top")
