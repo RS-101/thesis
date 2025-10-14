@@ -1,0 +1,31 @@
+---
+title: "output"
+output: html_document
+---
+
+```{r fig.height=8, fig.width=10}
+library(qs)
+library(tidyverse)
+source("../experiments/plot_function.R")
+
+files <- list.files("results",full.names = T)
+
+for (i_df in seq_along(files)) {
+  res <- qread(files[i_df])
+  
+  
+  plot_data <- res$full_df$true_data_generation$plot
+ 
+  # Extract components
+  name <- sub("results/estimate_(.*)_n_.*\\.qs", "\\1", files[i_df])
+  n <- sub(".*_n_([0-9]+)\\.qs", "\\1", files[i_df])
+  
+  # Format a nice title
+  cat("#", toupper(sub("_", " ", name)), "with n =", n, "\n")
+  
+  plot(plot_data)
+ 
+  plot_cumhazards(res)
+}
+```
+

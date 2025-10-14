@@ -205,12 +205,12 @@ cal_log_likehood <- function(data, theta, degree, knots) {
   a12_funs <- make_spline_funs(theta$a12, knots$a12, degree)
   a13_funs <- make_spline_funs(theta$a13, knots$a13, degree)
   a23_funs <- make_spline_funs(theta$a23, knots$a23, degree)
-
+  
   # hazards
   a12 <- a12_funs$hazard
   a13 <- a13_funs$hazard
   a23 <- a23_funs$hazard
-
+  
   # cumulative hazards
   A12 <- a12_funs$cumhaz
   A13 <- a13_funs$cumhaz
@@ -218,30 +218,30 @@ cal_log_likehood <- function(data, theta, degree, knots) {
   
   ll_value <- 0
   if (any(status == 1)) ll_value <- ll_value + sum(log(case_1_likelihood(V_0[as.integer(status) == 1],
-                                                                     V_healthy[as.integer(status) == 1],
-                                                                     T_obs[as.integer(status) == 1],
-                                                                     a12, a13, a23, 
-                                                                     A12, A13, A23)))
+                                                                         V_healthy[as.integer(status) == 1],
+                                                                         T_obs[as.integer(status) == 1],
+                                                                         a12, a13, a23, 
+                                                                         A12, A13, A23)))
   
   if (any(as.integer(status) == 2)) ll_value <- ll_value + sum(log(case_2_likelihood(V_0[as.integer(status) == 2],
-                                                                     V_healthy[as.integer(status) == 2],
-                                                                     T_obs[as.integer(status) == 2],
-                                                                     a12, a13, a23, 
-                                                                     A12, A13, A23)))
+                                                                                     V_healthy[as.integer(status) == 2],
+                                                                                     T_obs[as.integer(status) == 2],
+                                                                                     a12, a13, a23, 
+                                                                                     A12, A13, A23)))
   
   if (any(as.integer(status) == 3)) ll_value <- ll_value + sum(log(case_3_likelihood(V_0[as.integer(status) == 3],
-                                                                     V_healthy[as.integer(status) == 3],
-                                                                     V_ill[as.integer(status) == 3],
-                                                                     T_obs[as.integer(status) == 3],
-                                                                     a12, a13, a23, 
-                                                                     A12, A13, A23)))
+                                                                                     V_healthy[as.integer(status) == 3],
+                                                                                     V_ill[as.integer(status) == 3],
+                                                                                     T_obs[as.integer(status) == 3],
+                                                                                     a12, a13, a23, 
+                                                                                     A12, A13, A23)))
   
   if (any(as.integer(status) == 4)) ll_value <- ll_value + sum(log(case_4_likelihood(V_0[as.integer(status) == 4],
-                                                                     V_healthy[as.integer(status) == 4],
-                                                                     V_ill[as.integer(status) == 4],
-                                                                     T_obs[as.integer(status) == 4],
-                                                                     a12, a13, a23, 
-                                                                     A12, A13, A23)))
+                                                                                     V_healthy[as.integer(status) == 4],
+                                                                                     V_ill[as.integer(status) == 4],
+                                                                                     T_obs[as.integer(status) == 4],
+                                                                                     a12, a13, a23, 
+                                                                                     A12, A13, A23)))
   
   hazards = list(a12 = a12,
                  a13 = a13,
@@ -251,7 +251,7 @@ cal_log_likehood <- function(data, theta, degree, knots) {
                  A23 = A23)
   
   class(hazards) <- c(class(hazards), "full_spline_hazard")
-
+  
   return(list(ll_value = ll_value,
               hazards = hazards,
               theta = theta,
@@ -274,9 +274,9 @@ cal_pen_log_likehood <- function(data,
   stopifnot(length(kappa_term) == 3)
   
   ll <- cal_log_likehood(data, theta, degree, knots)
-
+  
   ll_value <- ll$ll_value
-
+  
   if(is.null(P_mat)) {
     P12 <- pen_mat_m_splines(knots$a12)
     P13 <- pen_mat_m_splines(knots$a13)
@@ -286,7 +286,7 @@ cal_pen_log_likehood <- function(data,
     P13 <- P_mat$P13
     P23 <- P_mat$P23
   }
-
+  
   raw_penalty <- c(drop(t(theta$a12) %*% P12 %*% theta$a12),
                    drop(t(theta$a13) %*% P13 %*% theta$a13),
                    drop(t(theta$a23) %*% P23 %*% theta$a23))
@@ -352,7 +352,7 @@ do_likelihood_optim <- function(data,
                                knots = knots, 
                                kappa_term = kappa_term, 
                                P_mat = P_mat)
-              
+    
     
     if (!is.finite(pl$pl_value)) return(1e10)
     -pl$pl_value
@@ -387,20 +387,53 @@ do_likelihood_optim <- function(data,
   
   
   res <- list(
-          theta_hat = theta_hat,
-          knots = knots,
-          degree = degree,
-          kappa_term = kappa_term,
-          hazards = pl_at_theta_hat$hazards,
-          ll_value = pl_at_theta_hat$ll_value, 
-          pl_value = pl_at_theta_hat$pl_value, 
-          data = data,
-          P_mat = P_mat, 
-          n_par = n_par)
+    theta_hat = theta_hat,
+    knots = knots,
+    degree = degree,
+    kappa_term = kappa_term,
+    hazards = pl_at_theta_hat$hazards,
+    ll_value = pl_at_theta_hat$ll_value, 
+    pl_value = pl_at_theta_hat$pl_value, 
+    data = data,
+    P_mat = P_mat, 
+    n_par = n_par)
   
   class(res) <- c("pl_optim", class(res))
   res
 }
+
+safe_solve <- function(H_pl, H_ll, ridge_start = 0, tol = 1e-8, max_iter = 8) {
+  # Ensure symmetry (Hessians should be symmetric, but numerics can drift)
+  H <- (H_pl + t(H_pl)) / 2
+  
+  # Scale for the ridge so lambda is magnitude-aware
+  sc <- mean(abs(diag(H)))
+  if (!is.finite(sc) || sc == 0) sc <- 1
+  
+  # Try Cholesky with increasing ridge
+  lambda <- ridge_start
+  for (i in 0:max_iter) {
+    H_reg <- H + (lambda * sc + .Machine$double.eps) * diag(nrow(H))
+    R <- try(chol(H_reg), silent = TRUE)  # H_reg = t(R) %*% R
+    if (!inherits(R, "try-error")) {
+      # Solve H_reg X = H_ll via two triangular solves (no explicit inverse)
+      Y <- forwardsolve(t(R), H_ll)   # t(R) Y = H_ll
+      X <- backsolve(R, Y)            # R X = Y
+      return(list(X = X, method = "chol", lambda = lambda * sc, iters = i))
+    }
+    lambda <- if (lambda == 0) tol else lambda * 10
+  }
+  
+  # Fallback: SVD pseudo-inverse with thresholding
+  sv <- svd(H)
+  thr <- max(tol, max(sv$d) * 1e-12)
+  d_inv <- ifelse(sv$d > thr, 1 / sv$d, 0)
+  X <- sv$v %*% (d_inv * t(sv$u) %*% H_ll)
+  list(X = X, method = "svd", lambda = lambda * sc, rank = sum(sv$d > thr))
+}
+
+
+
 
 approx_cv <- function(pl_optim) {
   
@@ -427,7 +460,7 @@ approx_cv <- function(pl_optim) {
     
     cal_log_likehood(data = data, theta = theta, degree = degree, knots = knots)$ll_value
   } 
-
+  
   
   cal_pl_in_long_theta <- function(long_theta){
     
@@ -441,12 +474,12 @@ approx_cv <- function(pl_optim) {
   } 
   long_theta_hat <- unlist(theta_hat)
   
-
+  
   H_pl <- numDeriv::hessian(cal_pl_in_long_theta, long_theta_hat)
   H_ll  <- numDeriv::hessian(cal_ll_in_long_theta, long_theta_hat)
   
-  X <- solve(H_pl, H_ll) # solves H_pl X = H_ll
-  tr_val <- sum(diag(X))
+  res <- safe_solve(H_pl, H_ll) # solves H_pl X = H_ll
+  tr_val <- sum(diag(res$X))
   
   
   approx_cv <- ll_value - tr_val

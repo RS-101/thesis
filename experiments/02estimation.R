@@ -1,9 +1,13 @@
 library(qs)
+library(Rcpp)
+
 
 source("joly/functions_estimation.R")
 source("joly/functions_plot.R")
-source("frydman/setup_cpp_from_data.R")
-df_to_estimate <- list.files("experiments/data/")
+source("frydman/wrapper.R")
+
+
+df_to_estimate <- list.files("experiments/data/")[1]
 
 
 for(i_df in seq_along(df_to_estimate)) {
@@ -15,13 +19,16 @@ for(i_df in seq_along(df_to_estimate)) {
 
   obs_data <- full_df$obs
   
+  est_npmle <- get_npmle(obs_data, max_iter = 100, tol = 0.001, verbose = T)
+  
   est_pl <- fit_idm(obs_data,
                     n_knots = 7, 
                     degree = 3, 
-                    kappa_values = 10^(-2:3), 
+                    kappa_values = c(0.1,10,100), 
                     verbose = T)
   
-  est_npmle <- fit
-  
-  
+  qsave(list(npmle = est_npmle,
+             penmle = est_pl, 
+             full_df),
+        file = paste0("experiments/results/estimate_",df))
 }

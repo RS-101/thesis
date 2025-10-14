@@ -1,9 +1,11 @@
 source("frydman/helper_function_cpp.R")
+source("frydman/helper_functions.R")
 sourceCpp("frydman/functions_em.cpp")
 
 get_npmle <- function(data, max_iter = 200, tol = 1e-8, verbose = FALSE) {
   
   mdl_ptr <- setup_frydman_cpp(data)
+  my_model <- model_data_summary(mdl_ptr)
   setup <- model_data_to_list(mdl_ptr)
   
   # Optionally provide initials; otherwise defaults inside C++ are used.
@@ -15,18 +17,18 @@ get_npmle <- function(data, max_iter = 200, tol = 1e-8, verbose = FALSE) {
                 verbose = verbose)
   
   estimators <- calc_F_and_hazards(
-    grid_points = seq(0, 5000, length.out = 256),
+    grid_points = seq(0, max(data$T_obs), length.out = 256),
     z_i = fit$z_i,
     lambda = fit$lambda_n, 
     setup$Q,
     setup$Q_i_mark, 
     setup$T_star, 
-    setup$E_star
+    setup$E_star,
+    as_function = TRUE
   )
   
   list(
     estimators = estimators,
-    plot = plot, 
     settings = list(
       data = data,
       verbose = verbose,

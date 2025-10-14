@@ -1,7 +1,6 @@
 library(Rcpp)
 library(data.table)
 sourceCpp("frydman/functions_em.cpp")
-source("frydman/helper_functions_setup_for_R.R")
 
 to_mat <- function(x) if (is.matrix(x)) x else as.matrix(unclass(x))
 
@@ -139,25 +138,25 @@ setup_frydman_cpp <- function(data) {
   I_mark <- I + K
   
   xp <- make_model_data(list(
-  # ints
-  J = J, C = C, K_tilde = K_tilde, U = U, N_tilde = N_tilde, M = M, W = W,
-  N1_obs_of_T_star = N1_obs_of_T_star,
-  U_pos_obs_of_T_star = U_pos_obs_of_T_star,
-  N = N, N_star = N_star, M_mark = M_mark, I = I, K = K, I_mark = I_mark,
-  
-  # scalars
-  s_max = s_max, R_max = R_max, e_star_max = e_star_max,
-  
-  # vectors
-  s_j = s_j, L_c = L_c, t_c = t_c, e_k = e_k, L_u = L_u, t_u = t_u,
-  t_m_in_N_tilde = t_m_in_N_tilde, L_m = L_m, R_m = R_m, t_m = t_m,
-  E_star = E_star, T_star = T_star, c_k = c_k, d_n = d_n,
-  L_bar = L_bar, R_bar = R_bar, s_j_c = s_j_c, s_j_full = s_j_full,
-  Q = Q, Q_i_mark = Q_i_mark, A_union = A_union,
-  
-  # 2-col “interval” matrices
-  A_m = to_mat(A_m), A_u = to_mat(A_u), A_c = to_mat(A_c),
-  full_A_m = to_mat(full_A_m), Q_i = to_mat(Q_i)
+    # ints
+    J = J, C = C, K_tilde = K_tilde, U = U, N_tilde = N_tilde, M = M, W = W,
+    N1_obs_of_T_star = N1_obs_of_T_star,
+    U_pos_obs_of_T_star = U_pos_obs_of_T_star,
+    N = N, N_star = N_star, M_mark = M_mark, I = I, K = K, I_mark = I_mark,
+    
+    # scalars
+    s_max = s_max, R_max = R_max, e_star_max = e_star_max,
+    
+    # vectors
+    s_j = s_j, L_c = L_c, t_c = t_c, e_k = e_k, L_u = L_u, t_u = t_u,
+    t_m_in_N_tilde = t_m_in_N_tilde, L_m = L_m, R_m = R_m, t_m = t_m,
+    E_star = E_star, T_star = T_star, c_k = c_k, d_n = d_n,
+    L_bar = L_bar, R_bar = R_bar, s_j_c = s_j_c, s_j_full = s_j_full,
+    Q = Q, Q_i_mark = Q_i_mark, A_union = A_union,
+    
+    # 2-col “interval” matrices
+    A_m = to_mat(A_m), A_u = to_mat(A_u), A_c = to_mat(A_c),
+    full_A_m = to_mat(full_A_m), Q_i = to_mat(Q_i)
   ))
   xp
 }
