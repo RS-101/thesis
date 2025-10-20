@@ -541,7 +541,9 @@ em_estimate_raw <- function(
     lambda_prev <- lambda_n
     
     ## ---------- E-step ----------
-    alpha_ij <- cal_alpha(Q_full, s_j_full)
+    
+    Q_i_mark = Q_full[[2]]
+    alpha_ij <- cal_alpha(Q_i, Q_i_mark, s_j_full)
     beta_im <- cal_beta(Q_i, full_A_m)
     
     mu_mi <- cal_mu_MI(z_i, lambda_n, beta_im, Q_i, A_m, T_star)
@@ -553,7 +555,7 @@ em_estimate_raw <- function(
     eta_ui <- cal_eta_UI_mark(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_u, M)
     eta_ui <- na0(eta_ui)
     
-    gamma_ci <- cal_gamma_CI_mark(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im, z_i, W)
+    gamma_ci <- cal_gamma_CI_mark(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im, z_i, W, J)
     gamma_ci <- na0(gamma_ci)
     
     rho_mn <- cal_rho_MN(t_m, T_star, A_m, mu_mi, Q_i)
@@ -629,7 +631,16 @@ em_estimate_raw <- function(
     z_tail = z_tail,
     lambda = lambda_n,
     converged = conv,
-    iterations = if (conv) iter else max_iter
+    iterations = if (conv) iter else max_iter,
+    alpha_ij = alpha_ij,
+    beta_im = beta_im,
+    mu_mi = mu_mi,
+    mu_bar_ji = mu_bar_ji,
+    eta_ui = eta_ui,
+    gamma_ci = gamma_ci,
+    rho_mn = rho_mn,
+    pi_un = pi_un,
+    sigma_cn = sigma_cn
   )
 }
 

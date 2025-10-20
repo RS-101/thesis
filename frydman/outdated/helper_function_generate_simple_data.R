@@ -1,5 +1,8 @@
-#### Data generation ####
-create_data <- function(seed = NULL) {
+library(Rcpp)
+source("frydman/helper_functions.R")
+sourceCpp("optimizing_function_em.cpp")
+#### Data generation #### 
+create_data <- function(seed = NULL) { 
   if (!is.null(seed)) set.seed(seed)
   
   ## M : 1 -> 2 @ [L_m, R_m], potential 2 -> 3 at t_m (subset N_tilde observed)
@@ -11,27 +14,27 @@ create_data <- function(seed = NULL) {
   in_N_tilde <- id_m %in% sample(id_m, size = N_tilde)
   
   L_m <- floor(runif(M, min = 1, max = 10))
-  R_m <- L_m + floor(runif(M, min = 1, max = 5))
-  t_m <- R_m + floor(runif(M, min = 0, max = 5))
+  R_m <- L_m + runif(M, min = 1, max = 5)
+  t_m <- R_m + runif(M, min = 0, max = 5)
   t_m_in_N_tilde <- t_m[in_N_tilde]
   
   ## K_tilde : 1 -> 3 @ e_k
   K_tilde <- 6
-  e_k <- floor(runif(K_tilde, min = 1, max = 10))
+  e_k <- runif(K_tilde, min = 1, max = 10)
   
   ## J : 1 -> ? @ s_j
   J <- 30
-  s_j <- floor(runif(J, min = 1, max = 10))
+  s_j <- runif(J, min = 1, max = 10)
   
   ## U : 1 @ L_u- -> ? -> 3 @ t_u
   U <- 24
-  L_u <- floor(runif(U, min = 1, max = 5))
-  t_u <- L_u + floor(runif(U, min = 2, max = 10))
+  L_u <- runif(U, min = 1, max = 5)
+  t_u <- L_u + runif(U, min = 2, max = 10)
   
   ## C : 1 @ L_c- -> ? -> ? @ t_c (censoring channel)
   C <- 10
-  L_c <- floor(runif(C, min = 1, max = 5))
-  t_c <- L_c + floor(runif(C, min = 2, max = 10))
+  L_c <- runif(C, min = 1, max = 5)
+  t_c <- L_c + runif(C, min = 2, max = 10)
   
   ## E* (observed/potential direct 1->3): union of e_k and t_u
   E_star <- sort(unique(c(e_k, t_u)))
@@ -122,10 +125,70 @@ create_data <- function(seed = NULL) {
     full_A_m = full_A_m, Q_i = Q_i
   )
   
-  model_data_list
+  model_data_list_r <- list(
+    Q_full = Q_full,
+    s_j_full = s_j_full,
+    Q_i = Q_i,
+    full_A_m = full_A_m,
+    A_m = A_m,
+    A_u = A_u,
+    A_c = A_c,
+    T_star = T_star,
+    E_star = E_star,
+    t_m = t_m,
+    t_u = t_u,
+    t_c = t_c,
+    N_star = N_star,
+    d_n = d_n,
+    c_k = c_k,
+    I_mark = I_mark,
+    J = J,
+    M = M,
+    W = W,
+    K_tilde = K_tilde,
+    N1_obs_of_T_star = N1_obs_of_T_star
+  )
+  
+
+  list(cpp = model_data_list, 
+       r = model_data_list_r)
 }
 
-setup_frydman_cpp <- function(dat = NULL) {
-  print(dat$I_mark)
-  make_model_data(dat)
-}
+my_data <- create_data()
+md <- make_model_data(my_data$cpp)
+
+cpp_fit <- em_fit(md)
+# op <- options(warn = 2)      # treat warnings as errors
+# try(em_fit(md))
+# traceback()
+# options(op)   
+
+source("frydman/functions_em.R")
+
+# Call with only valid args
+r_fit <- do.call(
+  em_estimate_raw,
+  c(list(
+    z_init      = rep(1/my_data$r$I_mark, my_data$r$I_mark),
+    lambda_init = rep(1/2, length(my_data$r$T_star)),
+    verbose     = TRUE,
+    max_iter    = 1,
+    tol         = 0.1
+  ), my_data$r)
+)
+
+cpp_fit$z_i
+r_fit$z
+
+
+
+
+
+max(abs(as.numeric(cpp_fit$alpha_ij)-as.numeric(r_fit$alpha_ij)))
+max(abs(as.numeric(cpp_fit$beta_im)-as.numeric(r_fit$beta_im)))
+max(abs(as.numeric(cpp_fit$mu_mi)-as.numeric(r_fit$mu_mi)))
+max(abs(as.numeric(cpp_fit$ws.mu_bar_ji)-as.numeric(r_fit$mu_bar_ji)))
+max(abs(as.numeric(cpp_fit$ws.eta_ui)-as.numeric(r_fit$eta_ui)))
+max(abs(as.numeric(cpp_fit$ws.gamma_ci)-as.numeric(r_fit$gamma_ci)))
+max(abs(as.numeric(cpp_fit$z_i)-as.numeric(r_fit$z)))
+
