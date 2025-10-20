@@ -215,6 +215,8 @@ SEXP make_model_data(List x) {
   return XPtr<ModelData>(new ModelData(x), true);
 }
 
+
+
 // ---------- workspace + helpers ----------
 struct Workspace {
   // parameters updated by EM
@@ -357,6 +359,7 @@ void print_summary(const ModelData& md, const Workspace& ws) {
               << std::endl;
   
   Rcpp::Rcout << "[calc_all] matrix shapes (rows x cols):"
+    // using arma n_rows/n_cols for arma matrices and nrow()/ncol() for Rcpp matrices
               << " ws.mu_mi=" << ws.mu_mi.n_rows << "x" << ws.mu_mi.n_cols
               << " ws.mu_bar_ji=" << ws.mu_bar_ji.n_rows << "x" << ws.mu_bar_ji.n_cols
               << " ws.eta_ui=" << ws.eta_ui.n_rows << "x" << ws.eta_ui.n_cols
@@ -380,7 +383,6 @@ void print_summary(const ModelData& md, const Workspace& ws) {
               << " C:" << md.L << ".." << (md.C > 0 ? md.C - 1 : -1)
               << std::endl;
   
-  Rcpp::Rcout << "[calc_all] Final z_i" << ws.z_i << std::endl;
 }
 
 void run_em_once(const ModelData& md, Workspace& ws) { 
@@ -477,7 +479,7 @@ void run_em_once(const ModelData& md, Workspace& ws) {
       if(md.I_rho_mn(l,n)) {
         for(int i = 0; i < md.I; ++i) {
             sum_rho_n +=
-              md.L_m[l] <= md.Q_i(i,0) && md.Q_i(i,0) < md.t_star_n[n] ?
+              md.L_m[l] <= md.Q_i(i,0) && md.Q_i(i,1) < md.t_star_n[n] ?
                 ws.mu_mi(l,i) : 0;
           }
         }
@@ -485,7 +487,7 @@ void run_em_once(const ModelData& md, Workspace& ws) {
       if(md.I_pi_un(l,n)) {
         for(int i = 0; i < md.I; ++i) {
           sum_pi_n +=
-            md.L_u[l] <= md.Q_i(i,0) && md.Q_i(i,0) < md.t_star_n[n] ?
+            md.L_u[l] <= md.Q_i(i,0) && md.Q_i(i,1) < md.t_star_n[n] ?
               ws.eta_ui(l,i) : 0;
           
           sum_pi_full_n += md.t_u[l] == md.t_star_n[n] ? ws.eta_ui(l,i) : 0;
@@ -495,7 +497,7 @@ void run_em_once(const ModelData& md, Workspace& ws) {
       if(md.I_sigma_cn(l,n)) {
         for(int i = 0; i < md.I; ++i) {
           sum_sigma_n +=
-            md.L_c[l] <= md.Q_i(i,0) && md.Q_i(i,0) < md.t_star_n[n] ?
+            md.L_c[l] <= md.Q_i(i,0) && md.Q_i(i,1) < md.t_star_n[n] ?
               ws.gamma_ci(l,i) : 0;
         }
       }
@@ -506,7 +508,7 @@ void run_em_once(const ModelData& md, Workspace& ws) {
       if(md.I_rho_mn(l,n)) {
         for(int i = 0; i < md.I; ++i) {
           sum_rho_n +=
-            md.L_m[l] <= md.Q_i(i,0) && md.Q_i(i,0) < md.t_star_n[n] ?
+            md.L_m[l] <= md.Q_i(i,0) && md.Q_i(i,1) < md.t_star_n[n] ?
               ws.mu_mi(l,i) : 0;
         }
       }
@@ -516,7 +518,7 @@ void run_em_once(const ModelData& md, Workspace& ws) {
       if(md.I_pi_un(l,n)) {
         for(int i = 0; i < md.I; ++i) {
           sum_pi_n +=
-            md.L_u[l] <= md.Q_i(i,0) && md.Q_i(i,0) < md.t_star_n[n] ? 
+            md.L_u[l] <= md.Q_i(i,0) && md.Q_i(i,1) < md.t_star_n[n] ? 
               ws.eta_ui(l,i) : 0;
           
           sum_pi_full_n += is_double_eq(md.t_u[l], md.t_star_n[n]) ? ws.eta_ui(l,i) : 0;
@@ -528,7 +530,7 @@ void run_em_once(const ModelData& md, Workspace& ws) {
       if(md.I_sigma_cn(l,n)) {
         for(int i = 0; i < md.I; ++i) {
           sum_sigma_n +=
-            md.L_c[l] <= md.Q_i(i,0) && md.Q_i(i,0) < md.t_star_n[n] ? 
+            md.L_c[l] <= md.Q_i(i,0) && md.Q_i(i,1) < md.t_star_n[n] ?
               ws.gamma_ci(l,i) : 0;
         }
       }
@@ -536,7 +538,8 @@ void run_em_once(const ModelData& md, Workspace& ws) {
     
     double demon = sum_rho_n + sum_pi_n + sum_sigma_n;
     
-    ws.lambda_n[n] = is_double_eq(demon, 0) ? 0 : (d_n_part + sum_pi_full_n)/demon;
+    ws.lambda_n[n] = std::min((d_n_part + sum_pi_full_n)/demon, 1.0);
+    
   }
   
   // --- Calculates new z ------------------------------------------------------
@@ -548,8 +551,15 @@ void run_em_once(const ModelData& md, Workspace& ws) {
   new_z.head(md.I) += arma::sum(ws.mu_mi, 0);
   new_z.subvec(md.I, md.I_mark - 1) += md.c_k;
   new_z /= md.N_star;
-  
+    
+  // normalize z_i to sum to 1
+  new_z /= arma::accu(new_z);
+
   ws.z_i = new_z;
+
+  // print sum of z_i for debugging
+  double z_sum = arma::accu(ws.z_i);
+  Rcpp::Rcout << "[run_em_once] sum(z_i) = " << z_sum << std::endl;
 }
 
 
@@ -563,7 +573,7 @@ Rcpp::List em_fit(SEXP md_ptr,
   
   Rcpp::XPtr<ModelData> p(md_ptr);
   const ModelData& md = *p;
-
+  
   Workspace ws;
 
   const arma::uword I_mark = static_cast<arma::uword>(md.I_mark);
@@ -576,6 +586,13 @@ Rcpp::List em_fit(SEXP md_ptr,
   } else {
     ws.z_i.fill(1.0 / static_cast<double>(I_mark));
   }
+  
+  // make sure that z_i sums to 1
+  ws.z_i /= arma::accu(ws.z_i);
+  // print initial sum of z_i for debugging
+  double z_sum_init = arma::accu(ws.z_i);
+  Rcpp::Rcout << "[em_fit] Initial sum(z_i) = " << z_sum_init << std::endl;
+
 
   const arma::uword N = static_cast<arma::uword>(md.t_star_n.size());
   ws.lambda_n.set_size(N);
@@ -587,6 +604,9 @@ Rcpp::List em_fit(SEXP md_ptr,
   } else {
     ws.lambda_n.fill(0.5);
   }
+  
+  
+
   
   double dz = 0.0, dl = 0.0;
   for (int iter = 0; iter < max_iter; ++iter) {
@@ -609,8 +629,10 @@ Rcpp::List em_fit(SEXP md_ptr,
       if (std::isfinite(dz) && std::isfinite(dl) && std::max(dz, dl) < tol)
         break;
   }
-  
+
   if (verbose) print_summary(md, ws);
+
+  
 
   return Rcpp::List::create(
     Rcpp::_["z_i"]      = ws.z_i,
