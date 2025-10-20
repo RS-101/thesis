@@ -161,17 +161,17 @@ make_Q <- function(L_bar, R_bar) {
 }
 
 # Comment: the intervals input determines if the interval is open or closed
-product_over_t_stars <- function(intervals, T_star, lambda_n) {
+product_over_t_stars <- function(intervals, t_star_n, lambda_n) {
   if(!inherits(intervals, "interval")) stop("intervals need to be of type interval")
-  T_stars_to_prod_over <- intersect(T_star, intervals)
-  prod_lambdas <- lambda_n[which(T_star %in% T_stars_to_prod_over)]
+  T_stars_to_prod_over <- intersect(t_star_n, intervals)
+  prod_lambdas <- lambda_n[which(t_star_n %in% T_stars_to_prod_over)]
   prod(1-prod_lambdas)
 }
 
-product_over_t_stars_one_interval <- function(L, R, L_open, R_open,T_star, lambda_n) {
+product_over_t_stars_one_interval <- function(L, R, L_open, R_open,t_star_n, lambda_n) {
   intervals <- as.interval(matrix(c(L, R), ncol = 2), L_open, R_open)
-  T_stars_to_prod_over <- intersect(T_star, intervals)
-  prod_lambdas <- lambda_n[which(T_star %in% T_stars_to_prod_over)]
+  T_stars_to_prod_over <- intersect(t_star_n, intervals)
+  prod_lambdas <- lambda_n[which(t_star_n %in% T_stars_to_prod_over)]
   prod(1-prod_lambdas)
 }
 
@@ -214,7 +214,7 @@ step_cdf <- function(grid_points, times, masses, ...) {
 }
 
 # Main calculator
-calc_F_and_hazards <- function(grid_points, z_i, lambda_n, Q_i, Q_i_mark, T_star, E_star, as_function = FALSE) {
+calc_F_and_hazards <- function(grid_points, z_i, lambda_n, Q_i, Q_i_mark, t_star_n, E_star, as_function = FALSE) {
   
   
   I <- nrow(Q_i)
@@ -227,7 +227,7 @@ calc_F_and_hazards <- function(grid_points, z_i, lambda_n, Q_i, Q_i_mark, T_star
   F13 <- step_cdf(grid_points, times = Q_i_mark, masses = z_i[(I+1):I_mark])
   F_total <- F12 + F13
   
-  A23 <- step_cdf(grid_points, T_star, masses = lambda_n)
+  A23 <- step_cdf(grid_points, t_star_n, masses = lambda_n)
   
   
   F12_at_l_i <- step_cdf(Q_i[,1]-1e-6, times = Q_i[1:I, 2], masses = z_i[1:I])

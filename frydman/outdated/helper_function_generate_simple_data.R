@@ -43,12 +43,12 @@ create_data <- function(seed = NULL) {
   K <- length(E_star)
   
   ## T* (observed/potential entry to 3 from state 2): union of t_m[in_N_tilde] and t_u
-  T_star <- sort(unique(c(t_m_in_N_tilde, t_u)))
-  d_n <- as.numeric(table(factor(c(t_m_in_N_tilde, t_u), levels = T_star)))
+  t_star_n <- sort(unique(c(t_m_in_N_tilde, t_u)))
+  d_n <- as.numeric(table(factor(c(t_m_in_N_tilde, t_u), levels = t_star_n)))
   
   N1_obs_of_T_star <- length(unique(t_m_in_N_tilde))
   U_pos_obs_of_T_star <- length(setdiff(unique(t_u), unique(t_m_in_N_tilde)))
-  N <- length(T_star)
+  N <- length(t_star_n)
   
   ## Totals
   N_star <- M + U + C + K_tilde + J
@@ -73,7 +73,7 @@ create_data <- function(seed = NULL) {
   ## Bars
   L_bar <- c(
     full_A_m[, 1],
-    intersect(A_union, T_star),
+    intersect(A_union, t_star_n),
     intersect(A_union, s_j),
     na.omit(ifelse(s_max > max(R_max, e_star_max), s_max, NA))
   )
@@ -103,9 +103,8 @@ create_data <- function(seed = NULL) {
   model_data_list <- list(
     # ints
     J = J, C = C, K_tilde = K_tilde, U = U, N_tilde = N_tilde, M = M, W = W,
-    N1_obs_of_T_star = N1_obs_of_T_star,
-    U_pos_obs_of_T_star = U_pos_obs_of_T_star,
     N = N, N_star = N_star, M_mark = M_mark, I = I, K = K, I_mark = I_mark,
+    N1_obs_of_T_star = N1_obs_of_T_star,
     
     # scalars
     s_max = s_max, R_max = R_max, e_star_max = e_star_max,
@@ -113,7 +112,7 @@ create_data <- function(seed = NULL) {
     # vectors
     s_j = s_j, L_c = L_c, t_c = t_c, e_k = e_k, L_u = L_u, t_u = t_u,
     t_m_in_N_tilde = t_m_in_N_tilde, L_m = L_m, R_m = R_m, t_m = t_m,
-    E_star = E_star, T_star = T_star,
+    E_star = E_star, t_star_n = t_star_n,
     L_bar = L_bar, R_bar = R_bar, s_j_c = s_j_c, s_j_full = s_j_full,
     Q = as.numeric(t(Q_i)), Q_i_mark = Q_i_mark, A_union = A_union,
     
@@ -133,7 +132,7 @@ create_data <- function(seed = NULL) {
     A_m = A_m,
     A_u = A_u,
     A_c = A_c,
-    T_star = T_star,
+    t_star_n = t_star_n,
     E_star = E_star,
     t_m = t_m,
     t_u = t_u,
@@ -148,7 +147,6 @@ create_data <- function(seed = NULL) {
     K_tilde = K_tilde,
     N1_obs_of_T_star = N1_obs_of_T_star
   )
-  
 
   list(cpp = model_data_list, 
        r = model_data_list_r)
@@ -156,8 +154,8 @@ create_data <- function(seed = NULL) {
 
 my_data <- create_data()
 md <- make_model_data(my_data$cpp)
-
-cpp_fit <- em_fit(md)
+cpp_fit <- em_fit(md, max_iter = 1000, verbose = T)
+# cpp_fit <- em_fit_once(md)
 # op <- options(warn = 2)      # treat warnings as errors
 # try(em_fit(md))
 # traceback()
@@ -170,25 +168,27 @@ r_fit <- do.call(
   em_estimate_raw,
   c(list(
     z_init      = rep(1/my_data$r$I_mark, my_data$r$I_mark),
-    lambda_init = rep(1/2, length(my_data$r$T_star)),
+    lambda_init = rep(1/2, length(my_data$r$t_star_n)),
     verbose     = TRUE,
     max_iter    = 1,
     tol         = 0.1
   ), my_data$r)
 )
 
+
 cpp_fit$z_i
 r_fit$z
-
-
 
 
 
 max(abs(as.numeric(cpp_fit$alpha_ij)-as.numeric(r_fit$alpha_ij)))
 max(abs(as.numeric(cpp_fit$beta_im)-as.numeric(r_fit$beta_im)))
 max(abs(as.numeric(cpp_fit$mu_mi)-as.numeric(r_fit$mu_mi)))
-max(abs(as.numeric(cpp_fit$ws.mu_bar_ji)-as.numeric(r_fit$mu_bar_ji)))
-max(abs(as.numeric(cpp_fit$ws.eta_ui)-as.numeric(r_fit$eta_ui)))
-max(abs(as.numeric(cpp_fit$ws.gamma_ci)-as.numeric(r_fit$gamma_ci)))
+max(abs(as.numeric(cpp_fit$mu_bar_ji)-as.numeric(r_fit$mu_bar_ji)))
+max(abs(as.numeric(cpp_fit$eta_ui)-as.numeric(r_fit$eta_ui)))
+max(abs(as.numeric(cpp_fit$gamma_ci)-as.numeric(r_fit$gamma_ci)))
 max(abs(as.numeric(cpp_fit$z_i)-as.numeric(r_fit$z)))
+
+sum(cpp_fit$z_i)
+sum(as.numeric(r_fit$z))
 

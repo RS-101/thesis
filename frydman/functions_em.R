@@ -2,10 +2,6 @@ source("frydman/helper_functions.R")
 
 
 
-
-
-
-
 #### Prepare data frame to count data ####
 prepare_data_R <- function(data) {
   
@@ -64,13 +60,13 @@ prepare_data_R <- function(data) {
   K <- length(E_star)
   
   ##### N: T* - Obs and potential entry to state 3 from state 2: 1 -> 2 -> 3 ####
-  T_star <- unique(c(t_m_in_N_tilde, t_u))
-  d_n <- as.numeric(table(factor(c(t_m_in_N_tilde, t_u), levels = T_star)))
+  t_star_n <- unique(c(t_m_in_N_tilde, t_u))
+  d_n <- as.numeric(table(factor(c(t_m_in_N_tilde, t_u), levels = t_star_n)))
   
   N1_obs_of_T_star <- length(unique(t_m_in_N_tilde))
   U_pos_obs_of_T_star <- length(setdiff(unique(t_u), unique(t_m_in_N_tilde)))
   
-  N <- length(T_star)
+  N <- length(t_star_n)
   
   ##### Total: N* = M + U + C + K_tilde + J ####
   N_star <- M + U + C + K_tilde + J # Total count
@@ -111,7 +107,7 @@ prepare_data_R <- function(data) {
   # L_bar ={L_m, 1 <= m <= M'} ∪ {T* ∩ A} ∪ {S_J ∩ A} ∪ {s_max : s_max > R_max ∨ e*_max}
   L_bar <- c(
     full_A_m[, 1],
-    intersect(A_union, T_star),
+    intersect(A_union, t_star_n),
     intersect(A_union, s_j),
     na.omit(ifelse(s_max > max(R_max, e_star_max), s_max, NA))
   )
@@ -152,7 +148,7 @@ prepare_data_R <- function(data) {
     A_m      = A_m,
     A_u      = A_u,
     A_c      = A_c,      # for cal_* using M/U/C components
-    T_star   = T_star,
+    t_star_n   = t_star_n,
     E_star   = E_star,   # for *star* arguments
     t_m      = t_m,
     t_u      = t_u,
@@ -205,7 +201,7 @@ cal_beta <- function(Q_i, full_A_m) {
 
 
 ##### μ_mi(z,λ,β,Q,A_m) ∈ M x I, ####
-cal_mu_MI <- function(z_i, lambda_n, beta_im, Q_i, A_m, T_star) {
+cal_mu_MI <- function(z_i, lambda_n, beta_im, Q_i, A_m, t_star_n) {
   I <- nrow(Q_i)
   M <- nrow(A_m)
   
@@ -223,7 +219,7 @@ cal_mu_MI <- function(z_i, lambda_n, beta_im, Q_i, A_m, T_star) {
         r_i, R[m],
         L_open = TRUE,
         R_open = FALSE,
-        T_star = T_star,
+        t_star_n = t_star_n,
         lambda_n = lambda_n
       )
     }))
@@ -248,7 +244,7 @@ cal_mu_bar_JI_mark <- function(alpha_ij, z_i, J) {
 }
 
 ##### η_ji(z,λ,β,Q,A_m) ∈ U x I', ####
-cal_eta_UI_mark <- function(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_u, M) {
+cal_eta_UI_mark <- function(z_i, lambda_n, beta_im, Q_i, A_u, E_star, t_star_n, t_u, M) {
   # Map between t_u and λ_n
   U <- nrow(A_u)
   I <- nrow(beta_im)
@@ -258,13 +254,13 @@ cal_eta_UI_mark <- function(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_
   
   r_i <- Q_i[, 2]
   for (u in 1:U) {
-    lambda_M_p_u <- lambda_n[T_star == t_u[u]]
+    lambda_M_p_u <- lambda_n[t_star_n == t_u[u]]
     prod_res <- unlist(lapply(r_i, function(r_i) {
       product_over_t_stars_one_interval(
         r_i, t_u[u],
         L_open = TRUE,
         R_open = TRUE,
-        T_star = T_star,
+        t_star_n = t_star_n,
         lambda_n = lambda_n
       )
     }))
@@ -286,10 +282,10 @@ cal_eta_UI_mark <- function(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_
   eta_ui
 }
 
-# eta_ui <- cal_eta_UI_mark(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_u)
+# eta_ui <- cal_eta_UI_mark(z_i, lambda_n, beta_im, Q_i, A_u, E_star, t_star_n, t_u)
 
 ##### γ_ji() ∈ C x I', ####
-cal_gamma_CI_mark <- function(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im, z_i, W, J) {
+cal_gamma_CI_mark <- function(Q_i, A_c, t_c, t_star_n, lambda_n, alpha_ij, beta_im, z_i, W, J) {
   I <- nrow(Q_i)
   C <- nrow(A_c)
   I_mark <- length(z_i)
@@ -303,7 +299,7 @@ cal_gamma_CI_mark <- function(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im
         r_i, t_c[c],
         L_open = TRUE,
         R_open = FALSE,
-        T_star = T_star,
+        t_star_n = t_star_n,
         lambda_n = lambda_n
       )
     }))
@@ -324,17 +320,17 @@ cal_gamma_CI_mark <- function(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im
 
 
 ##### ρ ∈ M x N ####
-cal_rho_MN <- function(t_m, T_star, A_m, mu_mi, Q_i) {
+cal_rho_MN <- function(t_m, t_star_n, A_m, mu_mi, Q_i) {
   M <- length(t_m)
-  N <- length(T_star)
+  N <- length(t_star_n)
   I <- nrow(Q_i)
   rho_mn <- matrix(nrow = M, ncol = N)
   
   for (n in 1:N) {
     for (m in 1:M) {
-      if (t_m[m] >= T_star[n]) {
+      if (t_m[m] >= t_star_n[n]) {
         int_L_t <- as.interval(
-          matrix(rep(c(A_m[m,1], T_star[n]), I), ncol = 2, byrow = TRUE),
+          matrix(rep(c(A_m[m,1], t_star_n[n]), I), ncol = 2, byrow = TRUE),
           L_open = FALSE, R_open = TRUE
         )
         rho_mn[m,n] <- sum(mu_mi[m,1:I] * is_subset(Q_i, int_L_t))
@@ -347,17 +343,17 @@ cal_rho_MN <- function(t_m, T_star, A_m, mu_mi, Q_i) {
 }
 
 ##### π ∈ U x N ####
-cal_pi_UN <- function(t_u, T_star, A_u, eta_ui, Q_i) {
+cal_pi_UN <- function(t_u, t_star_n, A_u, eta_ui, Q_i) {
   U <- length(t_u)
-  N <- length(T_star)
+  N <- length(t_star_n)
   I <- nrow(Q_i)
   pi_un <- matrix(nrow = U, ncol = N)
   
   for (n in 1:N) {
     for (u in 1:U) {
-      if (t_u[u] >= T_star[n]) {
+      if (t_u[u] >= t_star_n[n]) {
         int_L_t <- as.interval(
-          matrix(rep(c(A_u[u,1], T_star[n]), I), ncol = 2, byrow = TRUE),
+          matrix(rep(c(A_u[u,1], t_star_n[n]), I), ncol = 2, byrow = TRUE),
           L_open = FALSE, R_open = TRUE
         )
         pi_un[u,n] <- sum(eta_ui[u,1:I] * is_subset(Q_i, int_L_t))
@@ -370,20 +366,20 @@ cal_pi_UN <- function(t_u, T_star, A_u, eta_ui, Q_i) {
 }
 
 
-# pi_un <- cal_pi_UN(t_u, T_star, A_u, eta_ui, Q_i)
+# pi_un <- cal_pi_UN(t_u, t_star_n, A_u, eta_ui, Q_i)
 ##### σ ∈ C x N ####
-cal_sigma_CN <- function(t_c, T_star, A_c, gamma_ci, Q_i) {
+cal_sigma_CN <- function(t_c, t_star_n, A_c, gamma_ci, Q_i) {
   C <- length(t_c)
-  N <- length(T_star)
+  N <- length(t_star_n)
   I <- nrow(Q_i)
   
   sigma_cn <- matrix(nrow = C, ncol = N)
   
   for (n in 1:N) {
     for (c in 1:C) {
-      if (t_c[c] >= T_star[n]) {
+      if (t_c[c] >= t_star_n[n]) {
         int_L_t <- as.interval(
-          matrix(rep(c(A_c[c,1], T_star[n]), I), ncol = 2, byrow = TRUE),
+          matrix(rep(c(A_c[c,1], t_star_n[n]), I), ncol = 2, byrow = TRUE),
           L_open = FALSE, R_open = TRUE
         )
         sigma_cn[c,n] <- sum(gamma_ci[c,1:I] * is_subset(Q_i, int_L_t))
@@ -394,7 +390,7 @@ cal_sigma_CN <- function(t_c, T_star, A_c, gamma_ci, Q_i) {
   }  
   sigma_cn
 }
-# sigma_cn <- cal_sigma_CN(t_c, T_star, A_c, gamma_ci,Q_i)
+# sigma_cn <- cal_sigma_CN(t_c, t_star_n, A_c, gamma_ci,Q_i)
 
 #### (23)-(25) ####
 # (23)  z_i = (Σ_m μ_{mi} + Σ_j \bar{μ}_{ji} + Σ_u η_{ui} + Σ_c γ_{ci}) / N*
@@ -442,11 +438,11 @@ e_24 <- function(c_k, mu_bar_ji, eta_ui, gamma_ci, N_star, I, K_tilde) {
 # λ_n = [ I(n ≤ N1) d_n + Σ_u I(t_{M+u} = t*_n) Σ_i η_{ui} ] /
 #       [ Σ_m ρ_{mn} + Σ_u π_{un} + Σ_c σ_{cn} ]
 
-e_25 <- function(d_n, t_u, T_star, eta_ui, rho_mn, pi_un, sigma_cn, N1_obs_of_T_star) {
-  N <- length(T_star)
+e_25 <- function(d_n, t_u, t_star_n, eta_ui, rho_mn, pi_un, sigma_cn, N1_obs_of_T_star) {
+  N <- length(t_star_n)
   stopifnot(is.numeric(d_n), length(d_n) > 0)
   #N <- length(d_n)
-  stopifnot(length(T_star) == N,
+  stopifnot(length(t_star_n) == N,
             ncol(rho_mn) == N,
             ncol(pi_un) == N,
             nrow(eta_ui) == length(t_u))
@@ -458,7 +454,7 @@ e_25 <- function(d_n, t_u, T_star, eta_ui, rho_mn, pi_un, sigma_cn, N1_obs_of_T_
   s_eta_u   <- rowSums(eta_ui)                              # Σ_i η_{ui}
   s_by_time <- rowsum(s_eta_u, group = as.character(t_u))
   s_by_time <- setNames(as.numeric(s_by_time), rownames(s_by_time))
-  eta_term  <- s_by_time[as.character(T_star)]
+  eta_term  <- s_by_time[as.character(t_star_n)]
   eta_term[is.na(eta_term)] <- 0
   
   
@@ -505,7 +501,7 @@ em_estimate_raw <- function(
   Q_full, s_j_full, # for cal_alpha
   Q_i, full_A_m, # for cal_beta
   A_m, A_u, A_c, # for cal_* using M/U/C components
-  T_star, E_star, # for *star* arguments
+  t_star_n, E_star, # for *star* arguments
   t_m, t_u, t_c, # event-time indices for M/U/C
   N_star, # denominator constant in (23)/(24)
   d_n, # first-term vector in (25); include zeros if not applicable
@@ -520,7 +516,7 @@ em_estimate_raw <- function(
   max_iter = 200, tol = 1e-8, verbose = FALSE) {
   
   I <- nrow(Q_i)
-  N <- length(T_star)
+  N <- length(t_star_n)
   
   if(is.null(z_init) | is.null(lambda_init)) {
     z_init <- runif(I_mark)
@@ -546,26 +542,26 @@ em_estimate_raw <- function(
     alpha_ij <- cal_alpha(Q_i, Q_i_mark, s_j_full)
     beta_im <- cal_beta(Q_i, full_A_m)
     
-    mu_mi <- cal_mu_MI(z_i, lambda_n, beta_im, Q_i, A_m, T_star)
+    mu_mi <- cal_mu_MI(z_i, lambda_n, beta_im, Q_i, A_m, t_star_n)
     mu_mi <- na0(mu_mi)
     
     mu_bar_ji <- cal_mu_bar_JI_mark(alpha_ij, z_i, J)
     mu_bar_ji <- na0(mu_bar_ji)
     
-    eta_ui <- cal_eta_UI_mark(z_i, lambda_n, beta_im, Q_i, A_u, E_star, T_star, t_u, M)
+    eta_ui <- cal_eta_UI_mark(z_i, lambda_n, beta_im, Q_i, A_u, E_star, t_star_n, t_u, M)
     eta_ui <- na0(eta_ui)
     
-    gamma_ci <- cal_gamma_CI_mark(Q_i, A_c, t_c, T_star, lambda_n, alpha_ij, beta_im, z_i, W, J)
+    gamma_ci <- cal_gamma_CI_mark(Q_i, A_c, t_c, t_star_n, lambda_n, alpha_ij, beta_im, z_i, W, J)
     gamma_ci <- na0(gamma_ci)
     
-    rho_mn <- cal_rho_MN(t_m, T_star, A_m, mu_mi, Q_i)
+    rho_mn <- cal_rho_MN(t_m, t_star_n, A_m, mu_mi, Q_i)
     rho_mn <- na0(rho_mn)
     
-    pi_un <- cal_pi_UN(t_u, T_star, A_u, eta_ui, Q_i)
+    pi_un <- cal_pi_UN(t_u, t_star_n, A_u, eta_ui, Q_i)
     pi_un <- na0(pi_un)
     
     if(length(t_c) > 0){
-      sigma_cn <- cal_sigma_CN(t_c, T_star, A_c, gamma_ci, Q_i)
+      sigma_cn <- cal_sigma_CN(t_c, t_star_n, A_c, gamma_ci, Q_i)
       sigma_cn <- na0(sigma_cn)
     } else {
       sigma_cn = as.matrix(0)
@@ -606,7 +602,7 @@ em_estimate_raw <- function(
     lambda_n <- e_25(
       d_n      = d_n,
       t_u      = t_u,
-      T_star   = T_star,
+      t_star_n   = t_star_n,
       eta_ui   = eta_ui,
       rho_mn   = rho_mn,
       pi_un    = pi_un,
@@ -662,7 +658,7 @@ get_npmle_r <- function(data, max_iter = 200, tol = 1e-8, verbose = FALSE) {
   estimators <- calc_F_and_hazards(
     grid_points = seq(0, 3, by = 0.01),
     z_i = res_em$z, lambda = res_em$lambda, 
-    list_1$Q_full, list_1$T_star, list_1$E_star
+    list_1$Q_full, list_1$t_star_n, list_1$E_star
   )
   
   plot <- plot_estimators_gg(estimators)
