@@ -1,5 +1,5 @@
 library(Rcpp)
-source("frydman/helper_functions.R")
+source("frydman/functions_em_helpers.R")
 sourceCpp("optimizing_function_em.cpp")
 #### Data generation #### 
 create_data <- function(seed = NULL) { 
@@ -154,7 +154,7 @@ create_data <- function(seed = NULL) {
 
 my_data <- create_data()
 md <- make_model_data(my_data$cpp)
-cpp_fit <- em_fit(md, max_iter = 1000, verbose = T)
+cpp_fit <- em_fit(md, max_iter = 1, verbose = T)
 # cpp_fit <- em_fit_once(md)
 # op <- options(warn = 2)      # treat warnings as errors
 # try(em_fit(md))
@@ -170,8 +170,8 @@ r_fit <- do.call(
     z_init      = rep(1/my_data$r$I_mark, my_data$r$I_mark),
     lambda_init = rep(1/2, length(my_data$r$t_star_n)),
     verbose     = TRUE,
-    max_iter    = 1,
-    tol         = 0.1
+    max_iter    = 10,
+    tol         = 1
   ), my_data$r)
 )
 

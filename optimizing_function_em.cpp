@@ -552,8 +552,8 @@ void run_em_once(const ModelData& md, Workspace& ws) {
   new_z.subvec(md.I, md.I_mark - 1) += md.c_k;
   new_z /= md.N_star;
     
-  // normalize z_i to sum to 1
-  new_z /= arma::accu(new_z);
+  // // normalize z_i to sum to 1
+  // new_z /= arma::accu(new_z);
 
   ws.z_i = new_z;
 

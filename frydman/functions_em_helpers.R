@@ -75,8 +75,8 @@ get_interval.matrix <- function(m, L_open = F, R_open = F) {
     } else {
       start_stop <- !(L <= R)
     }
-    interval_start <- c(min(m_sorted),L[start_stop])
-    interval_end <- c(R[start_stop], max(m_sorted))
+    interval_start <- c(min(m_sorted[,1]),L[start_stop])
+    interval_end <- c(R[start_stop], max(m_sorted[,2]))
     res <- matrix(c(interval_start, interval_end),byrow = F, ncol = 2)
   } else {
     res <- m
@@ -135,6 +135,18 @@ is_subset.interval <- function(A, B, strict_subset = F) {
   return(l_compare(B[,1],A[,1]) & r_compare(A[,2],B[,2]))
 }
 
+make_Q <- function(L_bar, R_bar) {
+  L_bar <- sort(L_bar[!is.na(L_bar)])
+  R_bar <- sort(R_bar[!is.na(R_bar)])
+  Q_mat <- matrix(c(rep(0L, length(L_bar)), rep(1L, length(R_bar)), 
+                L_bar, R_bar), ncol = 2)
+  Q_mat <- Q_mat[order(Q_mat[,2]), ]
+  tag <- which(diff(Q_mat[, 1], 1) == 1)
+  Q_mat <- matrix(c(Q_mat[tag, 2], Q_mat[tag + 1, 2]), ncol = 2)
+  
+  Q_mat <- as.interval(Q_mat, L_open = F, R_open = F)
+  Q_mat
+}
 
 # Comment: the intervals input determines if the interval is open or closed
 product_over_t_stars <- function(intervals, t_star_n, lambda_n) {

@@ -1,9 +1,11 @@
 source("frydman/helper_functions.R")
 sourceCpp("optimizing_function_em.cpp")
 
-get_npmle <- function(data, max_iter = 200, tol = 1e-8, verbose = FALSE) {
+get_npmle <- function(data, data_list = NULL, max_iter = 200, tol = 1e-8, verbose = FALSE) {
   
-  data_list <- setup_data_to_list_format(data)
+  if(is.null(data_list )){
+    data_list <- setup_data_to_list_format(data)
+  }
   mdl_ptr <- make_model_data(data_list)
   
   z_init <- runif(data_list$I_mark)

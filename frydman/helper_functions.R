@@ -61,9 +61,9 @@ setup_data_to_list_format <- function(data, add_r_format = F) {
       } else {
         start_stop <- !(L <= R)
       }
-      interval_start <- c(min(m_sorted),L[start_stop])
-      interval_end <- c(R[start_stop], max(m_sorted))
-      res <- matrix(c(interval_start, interval_end),byrow = F, ncol = 2)
+      interval_start <- c(min(m_sorted[, 1]),L[start_stop])
+      interval_end <- c(R[start_stop], max(m_sorted[, 2]))
+      res <- matrix(c(interval_start, interval_end), byrow = F, ncol = 2)
     } else {
       res <- m
     }
