@@ -12,7 +12,8 @@ get_npmle <- function(data, data_list = NULL, max_iter = 200, tol = 1e-8, verbos
   
   z_init <- z_init/sum(z_init)
   
-  lambda_init <- runif(data_list$N,min = 0.1, max = 0.5)
+#  lambda_init <- runif(data_list$N,min = 0.00001, max = 0.001)
+  lambda_init <- rep(0.001, data_list$N)
   
   # Optionally provide initials; otherwise defaults inside C++ are used.
   fit <- em_fit(mdl_ptr,
@@ -23,7 +24,7 @@ get_npmle <- function(data, data_list = NULL, max_iter = 200, tol = 1e-8, verbos
                 verbose = verbose)
   
   estimators <- calc_F_and_hazards(
-    grid_points = seq(0, max(data$T_obs), length.out = 256),
+    grid_points = seq(0, max(data_list$e_star_max,data_list$s_max, data_list$R_max), length.out = 256),
     z_i = fit$z_i,
     lambda = fit$lambda_n, 
     data_list$Q,

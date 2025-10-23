@@ -268,7 +268,7 @@ void setup_prod(const ModelData& md, Workspace& ws) {
     
     ws.t_sorted[i] = t;
     
-    const bool is_one = std::abs(lam - 1.0) <= TOL;
+    const bool is_one = std::abs(1.0-lam) <= TOL;
     ws.zero_prefix[i + 1] = ws.zero_prefix[i] + (is_one ? 1.0 : 0.0);
     
     // Only add to log-prefix if not zero; if zero, keep running sum unchanged.
@@ -538,8 +538,13 @@ void run_em_once(const ModelData& md, Workspace& ws) {
     
     double demon = sum_rho_n + sum_pi_n + sum_sigma_n;
     
-    ws.lambda_n[n] = std::min((d_n_part + sum_pi_full_n)/demon, 1.0);
+    ws.lambda_n[n] = (d_n_part + sum_pi_full_n)/demon;
     
+    // if lambda_n[n] is larger than 1, we set it to 0.05
+    if(ws.lambda_n[n] > 1.0){
+      ws.lambda_n[n] = 0.05; 
+    }
+
   }
   
   // --- Calculates new z ------------------------------------------------------
@@ -557,9 +562,6 @@ void run_em_once(const ModelData& md, Workspace& ws) {
 
   ws.z_i = new_z;
 
-  // print sum of z_i for debugging
-  double z_sum = arma::accu(ws.z_i);
-  Rcpp::Rcout << "[run_em_once] sum(z_i) = " << z_sum << std::endl;
 }
 
 
@@ -590,8 +592,10 @@ Rcpp::List em_fit(SEXP md_ptr,
   // make sure that z_i sums to 1
   ws.z_i /= arma::accu(ws.z_i);
   // print initial sum of z_i for debugging
-  double z_sum_init = arma::accu(ws.z_i);
-  Rcpp::Rcout << "[em_fit] Initial sum(z_i) = " << z_sum_init << std::endl;
+  if (verbose) {
+    double z_sum_init = arma::accu(ws.z_i);
+    Rcpp::Rcout << "[em_fit] Initial sum(z_i) = " << z_sum_init << std::endl;
+  }
 
 
   const arma::uword N = static_cast<arma::uword>(md.t_star_n.size());
@@ -602,7 +606,7 @@ Rcpp::List em_fit(SEXP md_ptr,
       Rcpp::stop("length(lambda_init) must equal N (length(t_star_n))");
     for (arma::uword n = 0; n < N; ++n) ws.lambda_n[n] = lam[n];
   } else {
-    ws.lambda_n.fill(0.5);
+    ws.lambda_n.fill(0.005);
   }
   
   
@@ -621,18 +625,26 @@ Rcpp::List em_fit(SEXP md_ptr,
     for (arma::uword n = 0; n < N; ++n)
       dl = std::max(dl, std::abs(ws.lambda_n[n] - prev_lambda_n[n]));
 
-    if (verbose)
+    if (verbose) {
       Rcpp::Rcout << "iter " << (iter + 1)
                   << ": max|Δz|=" << dz
                   << " max|Δλ|=" << dl << "\n";
-
+        // print sum of z_i for debugging
+        
+      double z_sum = arma::accu(ws.z_i);
+      Rcpp::Rcout << "[em_fit] sum(z_i) = " << z_sum << std::endl;
+    }
+      
       if (std::isfinite(dz) && std::isfinite(dl) && std::max(dz, dl) < tol)
         break;
+
+
+        
   }
 
   if (verbose) print_summary(md, ws);
 
-  
+
 
   return Rcpp::List::create(
     Rcpp::_["z_i"]      = ws.z_i,
@@ -645,43 +657,3 @@ Rcpp::List em_fit(SEXP md_ptr,
     Rcpp::_["gamma_ci"]     = ws.gamma_ci
   );
 }
-
-// [[Rcpp::export]]
-Rcpp::List em_fit_once(SEXP md_ptr,
-                  Rcpp::Nullable<Rcpp::NumericVector> z_init = R_NilValue,
-                  Rcpp::Nullable<Rcpp::NumericVector> lambda_init = R_NilValue,
-                  int max_iter = 1) {
-  
-  Rcpp::XPtr<ModelData> p(md_ptr);
-  const ModelData& md = *p;
-  
-  const arma::uword N       = static_cast<arma::uword>(md.t_star_n.size()); // or md.N
-  const arma::uword I_mark  = static_cast<arma::uword>(md.I_mark);     // adapt if different
-  
-  Workspace ws;
-  
-  
-  ws.z_i.set_size(I_mark);
-  ws.z_i.fill(1.0 / static_cast<double>(I_mark));
-  
-  Rcpp::Rcout << "[em_fit] Initial ws.z_i" << ws.z_i << std::endl;
-  
-  ws.lambda_n.set_size(N);
-  ws.lambda_n.fill(0.5);
-  
-  run_em_once(md, ws);
-  
-  print_summary(md, ws);
-  
-  return Rcpp::List::create(
-    Rcpp::_["z_i"]      = ws.z_i,
-    Rcpp::_["lambda_n"] = ws.lambda_n,
-    Rcpp::_["alpha_ij"] = md.alpha_ij,
-    Rcpp::_["beta_im"]  = md.beta_im,
-    Rcpp::_["mu_mi"]    = ws.mu_mi,
-    Rcpp::_["ws.mu_bar_ji"]= ws.mu_bar_ji,
-    Rcpp::_["ws.eta_ui"]   = ws.eta_ui,
-    Rcpp::_["ws.gamma_ci"] = ws.gamma_ci
-  );
-}
-

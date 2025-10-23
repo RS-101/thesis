@@ -5,7 +5,7 @@ source("frydman/wrapper.R")
 source("datageneration/functions_simulate_data.R")
 source("experiments/plot_function.R")
 
-iter <- 1
+iter <- 100
 
 bias12 <- numeric(iter)
 bias13  <- numeric(iter)
